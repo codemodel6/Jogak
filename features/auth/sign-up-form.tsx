@@ -12,10 +12,7 @@ export default function SignUpForm() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    name: "",
-    height: "",
-    age: "",
-    location: "",
+    passwordConfirm: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
@@ -30,8 +27,16 @@ export default function SignUpForm() {
     setError(null);
     setApprovalModalOpen(false);
 
+    if (formData.password !== formData.passwordConfirm) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
     try {
-      await signUpMutation.mutateAsync(formData);
+      await signUpMutation.mutateAsync({
+        email: formData.email,
+        password: formData.password,
+      });
       setApprovalModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "회원가입 실패");
@@ -41,70 +46,48 @@ export default function SignUpForm() {
   return (
     <>
       <div className="app-frame flex min-h-screen items-center justify-center p-4">
-        <div className="surface-panel w-full max-w-xl">
+        <div className="surface-panel w-full max-w-md">
           <p className="section-kicker">조각</p>
           <h1 className="section-title">회원가입</h1>
-          <p className="section-copy">기본 프로필을 입력하고 바로 시작해 보세요.</p>
+          <p className="section-copy">
+            이메일로 가입한 뒤 첫 로그인 때 프로필을 설정합니다.
+          </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="label-text md:col-span-2">
-                이메일
-                <input
-                  className="input-field"
-                  type="email"
-                  value={formData.email}
-                  onChange={(event) => handleChange("email", event.target.value)}
-                  required
-                />
-              </label>
-              <label className="label-text md:col-span-2">
-                비밀번호
-                <input
-                  className="input-field"
-                  type="password"
-                  value={formData.password}
-                  onChange={(event) => handleChange("password", event.target.value)}
-                  required
-                />
-              </label>
-              <label className="label-text md:col-span-2">
-                이름
-                <input
-                  className="input-field"
-                  value={formData.name}
-                  onChange={(event) => handleChange("name", event.target.value)}
-                  required
-                />
-              </label>
-              <label className="label-text">
-                키
-                <input
-                  className="input-field"
-                  value={formData.height}
-                  onChange={(event) => handleChange("height", event.target.value)}
-                  placeholder="170"
-                />
-              </label>
-              <label className="label-text">
-                나이
-                <input
-                  className="input-field"
-                  value={formData.age}
-                  onChange={(event) => handleChange("age", event.target.value)}
-                  placeholder="25"
-                />
-              </label>
-              <label className="label-text md:col-span-2">
-                지역
-                <input
-                  className="input-field"
-                  value={formData.location}
-                  onChange={(event) => handleChange("location", event.target.value)}
-                  placeholder="서울 강남구"
-                />
-              </label>
-            </div>
+            <label className="label-text">
+              이메일
+              <input
+                className="input-field"
+                type="email"
+                value={formData.email}
+                onChange={(event) => handleChange("email", event.target.value)}
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+            <label className="label-text">
+              비밀번호
+              <input
+                className="input-field"
+                type="password"
+                value={formData.password}
+                onChange={(event) => handleChange("password", event.target.value)}
+                placeholder="6자 이상"
+                minLength={6}
+                required
+              />
+            </label>
+            <label className="label-text">
+              비밀번호 확인
+              <input
+                className="input-field"
+                type="password"
+                value={formData.passwordConfirm}
+                onChange={(event) => handleChange("passwordConfirm", event.target.value)}
+                minLength={6}
+                required
+              />
+            </label>
 
             {error && <div className="alert-error">{error}</div>}
 

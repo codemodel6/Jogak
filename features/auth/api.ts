@@ -1,5 +1,9 @@
 import { supabase } from "@/shared/supabase";
-import { getCurrentSession, requireUser } from "@/shared/lib/supabase/helpers";
+import {
+  getCurrentSession,
+  getProfileRow,
+  requireUser,
+} from "@/shared/lib/supabase/helpers";
 
 export async function getAuthStatus() {
   const session = await getCurrentSession();
@@ -25,27 +29,39 @@ export async function signInWithPassword(payload: {
 export async function signUpWithPassword(payload: {
   email: string;
   password: string;
-  name: string;
-  height: string;
-  age: string;
-  location: string;
 }) {
   const { error } = await supabase.auth.signUp({
     email: payload.email,
     password: payload.password,
     options: {
-      data: {
-        name: payload.name,
-        height: payload.height,
-        age: payload.age,
-        location: payload.location,
-      },
+      emailRedirectTo: `${window.location.origin}/`,
     },
   });
 
   if (error) {
     throw error;
   }
+}
+
+export async function signInWithGoogle() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}/`,
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+// 로그인 직후 이동할 곳: 프로필 입력을 마치지 않았으면 온보딩, 마쳤으면 홈
+export async function getPostLoginPath() {
+  const user = await requireUser();
+  const row = await getProfileRow(user.id);
+
+  return row?.onboarded_at ? "/home" : "/onboarding";
 }
 
 export async function signOut() {

@@ -1,141 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FiBell,
-  FiChevronDown,
-  FiChevronLeft,
   FiChevronRight,
   FiHeart,
-  FiHome,
-  FiMenu,
-  FiMessageCircle,
-  FiMoreHorizontal,
   FiShield,
   FiStar,
-  FiUser,
   FiUsers,
-  FiX,
 } from "react-icons/fi";
-import { PiDiamondLight } from "react-icons/pi";
 
-import { useRequestChatMutation } from "@/entities/chat/hooks";
+import { useMatchStatsQuery } from "@/entities/chat/hooks";
 import type { Post } from "@/entities/post";
 import { usePostsQuery } from "@/entities/post/hooks";
 import { useProfileQuery } from "@/entities/profile/hooks";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
+import { useOnlineUserIds } from "@/shared/lib/presence/online-users";
+import Skeleton from "@/shared/ui/skeleton";
+import HomeBanner from "@/widgets/home-banner";
+import MainLayout from "@/widgets/main-layout";
 
-type MatchCard = {
-  id: string;
-  name: string;
-  age: string;
-  location: string;
-  summary: string;
-  tags: string[];
-  online?: boolean;
-};
-
-const desktopCards: MatchCard[] = [
-  {
-    id: "lee-jihae",
-    name: "이지혜",
-    age: "24세",
-    location: "서울",
-    summary: "차분한 대화 좋아해요",
-    tags: ["#독서", "#전시회"],
-    online: true,
-  },
-  {
-    id: "kim-taejun",
-    name: "김태준",
-    age: "27세",
-    location: "경기",
-    summary: "산책과 카페 투어",
-    tags: ["#운동", "#등산"],
-    online: true,
-  },
-  {
-    id: "park-soyeon",
-    name: "박소연",
-    age: "25세",
-    location: "인천",
-    summary: "여행 메이트 찾는 중",
-    tags: ["#카페", "#여행"],
-    online: true,
-  },
-  {
-    id: "choi-minwoo",
-    name: "최민우",
-    age: "26세",
-    location: "서울",
-    summary: "영화 보고 이야기하는 시간",
-    tags: ["#게임", "#영화"],
-    online: true,
-  },
-];
-
-const mobileFeature: MatchCard = {
-  id: "mobile-feature",
-  name: "지금 이 사람과 매칭해보세요!",
-  age: "26세",
-  location: "서울",
-  summary: "영화, 여행 좋아해요",
-  tags: ["#진솔한대화", "#여행메이트"],
-  online: true,
-};
-
-const systemItems = [
-  {
-    icon: FiShield,
-    title: "신원 인증 완료",
-    description: "더 안전한 만남",
-  },
-  {
-    icon: FiStar,
-    title: "상호 평가 문화",
-    description: "신뢰를 쌓아가요",
-  },
-  {
-    icon: PiDiamondLight,
-    title: "신뢰 포인트",
-    description: "좋은 만남의 가치",
-  },
-];
-
-const desktopStats = [
-  { icon: FiUsers, label: "현재 접속 중", value: "128명", color: "text-violet-400" },
-  { icon: FiHeart, label: "오늘 매칭 성공", value: "24건", color: "text-violet-400" },
-  { icon: FiStar, label: "누적 매칭 성공", value: "1,248건", color: "text-amber-400" },
-];
-
-const desktopNotices = [
-  { title: "신뢰 포인트 적립 이벤트 안내", date: "11.29", isNew: true },
-  { title: "안전한 만남을 위한 가이드 업데이트", date: "11.28" },
-  { title: "주말 실시간 매칭 운영 시간 안내", date: "11.27" },
-  { title: "실시간 카드 노출 기준 변경 안내", date: "11.26" },
-  { title: "매칭 시스템 개선 사항 안내", date: "11.25" },
-];
-
-const mobileTabs = [
-  { label: "홈", icon: FiHome, active: true, href: "/home" },
-  { label: "매칭", icon: FiHeart, href: "/matching" },
-  { label: "채팅", icon: FiMessageCircle, href: "/chats" },
-  { label: "포인트", icon: PiDiamondLight, href: "/profile" },
-  { label: "마이", icon: FiUser, href: "/profile" },
-];
-
-const mobileCards = desktopCards.slice(0, 2);
-
-const desktopNav = [
-  { label: "홈", icon: FiHome, active: true },
-  { label: "매칭", icon: FiHeart, href: "/matching" },
-  { label: "채팅", icon: FiMessageCircle, href: "/chats" },
-  { label: "포인트", icon: PiDiamondLight },
-  { label: "내 정보", icon: FiUser, href: "/profile" },
-  { label: "알림", icon: FiBell },
-];
+const CARD_COUNT = 10;
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -143,599 +29,190 @@ function cx(...values: Array<string | false | null | undefined>) {
 
 export default function HomePage() {
   const router = useRouter();
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [desktopIndex, setDesktopIndex] = useState(0);
   const { data: isAuthenticated } = useAuthStatusQuery();
   const queryEnabled = isAuthenticated === true;
   const postsQuery = usePostsQuery(queryEnabled);
   const profileQuery = useProfileQuery(queryEnabled);
-  const requestChatMutation = useRequestChatMutation();
+  const matchStatsQuery = useMatchStatsQuery(queryEnabled);
+
+  const posts: Post[] = postsQuery.data?.posts ?? [];
+  const profile = profileQuery.data?.profile;
+  const onlineIds = useOnlineUserIds(profile?.userId);
+  // 서버 화면과 브라우저 첫 화면을 같게(스켈레톤) 그린다
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (isAuthenticated === false) {
       router.replace("/login");
+    } else if (profile && !profile.onboarded) {
+      router.replace("/onboarding");
     }
-  }, [isAuthenticated, router]);
-
-  const posts: Post[] = postsQuery.data?.posts ?? [];
-  const profile = profileQuery.data?.profile;
-  const trust = profile?.hearts ?? 1240;
-  const profileName = profile?.name?.trim() || "김신뢰";
+  }, [isAuthenticated, profile, router]);
   const currentUserId = profile?.userId ?? "";
-  const loading =
-    isAuthenticated === undefined || postsQuery.isPending || profileQuery.isPending;
+  const postsLoading = !mounted || isAuthenticated !== true || postsQuery.isPending;
+  const profileLoading = !mounted || isAuthenticated !== true || profileQuery.isPending;
   const queryError = postsQuery.error ?? profileQuery.error;
   const error =
-    actionError ??
     (queryError instanceof Error
       ? queryError.message
       : queryError
         ? "데이터를 불러오지 못했습니다."
         : null);
 
-  const availablePosts = posts.filter((post) => post.userId && post.userId !== currentUserId);
+  // 다른 사람이 올린 매칭 글(최신순). 지금 접속 중인 사람의 글을 앞에 둔다.
+  const availablePosts = posts
+    .filter((post) => post.userId && post.userId !== currentUserId)
+    .map((post, order) => ({ post, order, online: onlineIds.includes(post.userId) }))
+    .sort((a, b) => Number(b.online) - Number(a.online) || a.order - b.order);
+  const cardPosts = availablePosts.slice(0, CARD_COUNT);
 
-  const handleRequestChat = async () => {
-    if (availablePosts.length === 0) {
-      router.push("/create-post");
-      return;
-    }
-
-    try {
-      const response = await requestChatMutation.mutateAsync(availablePosts[0].userId);
-      setActionError(null);
-      router.push(`/chat/${response.chatId}`);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "채팅 요청에 실패했습니다.");
-    }
-  };
-
-  const nextDesktopCard = () => {
-    setDesktopIndex((prev) => (prev + 1) % desktopCards.length);
-  };
-
-  const prevDesktopCard = () => {
-    setDesktopIndex((prev) => (prev - 1 + desktopCards.length) % desktopCards.length);
-  };
-
-  const desktopVisibleCards = desktopCards.map((_, index) => {
-    return desktopCards[(desktopIndex + index) % desktopCards.length];
-  });
+  const matchStats = matchStatsQuery.data;
+  const formatCount = (value: number | undefined, unit: string) =>
+    value === undefined ? null : `${value.toLocaleString("ko-KR")}${unit}`;
+  const stats = [
+    { icon: FiUsers, label: "현재 접속 중", value: formatCount(onlineIds.length || undefined, "명"), color: "text-violet-400" },
+    { icon: FiHeart, label: "오늘 매칭 성공", value: formatCount(matchStats?.todayMatched, "건"), color: "text-violet-400" },
+    { icon: FiStar, label: "누적 매칭 성공", value: formatCount(matchStats?.totalMatched, "건"), color: "text-amber-400" },
+  ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(74,51,181,0.24),transparent_22%),radial-gradient(circle_at_top_right,rgba(41,16,109,0.14),transparent_18%),linear-gradient(180deg,#070b1c,#040814)] text-white">
-      <div className="desktop-screen">
-        <aside className="desktop-sidebar">
-          <div className="desktop-brand">
-            <div className="desktop-brand-badge">
-              <FiShield className="text-[1.1rem]" />
-            </div>
-            <div>
-              <p className="desktop-brand-text">조각</p>
-            </div>
-          </div>
-
-          <nav className="desktop-nav">
-            {desktopNav.map((item) => {
-              const Icon = item.icon;
-              const content = (
-                <div
-                  className={cx(
-                    "desktop-nav-item",
-                    item.active && "desktop-nav-item-active",
-                  )}
-                >
-                  <Icon className="desktop-nav-icon" />
-                  <span>{item.label}</span>
+    <MainLayout active="home" title="홈" copy="신뢰 기반 실시간 만남" mobileTitle="조각">
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
+          {/* 보조 단: PC에서는 오른쪽에 고정, 모바일에서는 본문 맨 위 */}
+          <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-5 xl:col-start-2 xl:row-start-1">
+            <section className="rounded-[22px] bg-[linear-gradient(135deg,rgba(87,60,216,0.92),rgba(25,20,74,0.94))] px-5 py-5 shadow-[0_22px_42px_rgba(29,20,84,0.3)]">
+              <p className="text-[0.92rem] font-medium text-white/80">내 신뢰 포인트</p>
+              <div className="mt-3 flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5660ff,#5b4eff)]">
+                  <FiShield className="text-[1.6rem] text-white" />
                 </div>
-              );
-
-              if (item.href) {
-                return (
-                  <Link key={item.label} href={item.href}>
-                    {content}
-                  </Link>
-                );
-              }
-
-              return (
-                <button key={item.label} type="button" className="block w-full text-left">
-                  {content}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <div className="desktop-content">
-          <header className="desktop-header">
-            <div className="flex items-center gap-5">
-              <h1 className="desktop-header-title">홈</h1>
-              <p className="desktop-header-copy">신뢰 기반 실시간 만남</p>
-            </div>
-            <div className="desktop-header-actions">
-              <div className="relative">
-                <FiBell className="text-[1.45rem] text-white" />
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#6f56ff] px-1 text-[0.68rem] font-semibold text-white">
-                  3
-                </span>
-              </div>
-              <div className="desktop-header-avatar">
-                <div className="h-11 w-11 overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#3c2e7f,#171c35)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" src="" className="h-full w-full object-cover opacity-0" />
-                </div>
-                <span className="desktop-header-avatar-name">{profileName}</span>
-                <FiChevronDown className="text-[1.2rem] text-zinc-300" />
-              </div>
-            </div>
-          </header>
-
-          <div className="desktop-main grid 2xl:grid-cols-[minmax(0,1.62fr)_440px]">
-            <div className="desktop-main-left">
-              <section className="overflow-hidden rounded-[20px] border border-white/7 bg-[linear-gradient(135deg,rgba(14,23,43,0.98),rgba(10,14,30,0.96))] shadow-[0_26px_70px_rgba(0,0,0,0.3)]">
-                <div className="relative grid h-[304px] grid-cols-[1.02fr_0.98fr]">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.1),transparent_38%),linear-gradient(90deg,rgba(5,9,21,0.82),rgba(5,9,21,0.18)_52%,rgba(5,9,21,0.46))]" />
-                  <div className="absolute inset-0 bg-[linear-gradient(135deg,#182132,#0c1226)]" />
-                  <div className="absolute inset-0 opacity-60 [background:radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.16),transparent_6%),radial-gradient(circle_at_28%_36%,rgba(255,226,186,0.18),transparent_5%),radial-gradient(circle_at_42%_26%,rgba(199,225,255,0.15),transparent_4%),radial-gradient(circle_at_78%_18%,rgba(255,255,255,0.16),transparent_4%),radial-gradient(circle_at_84%_44%,rgba(255,218,173,0.14),transparent_5%),radial-gradient(circle_at_66%_64%,rgba(255,255,255,0.12),transparent_4%),linear-gradient(135deg,#202a37,#0f1220_58%,#151b2b)]" />
-                  <div className="absolute bottom-0 right-0 top-0 w-[44%]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img alt="" src="" className="h-full w-full object-cover opacity-0" />
-                  </div>
-
-                  <div className="relative z-10 flex flex-col justify-between px-10 py-7">
-                    <div>
-                      <h2 className="max-w-[16rem] text-[2.35rem] font-semibold leading-[1.15] tracking-[-0.04em] text-white">
-                        지금 이 사람과
-                        <br />
-                        매칭해보세요!
-                      </h2>
-                      <p className="mt-3.5 text-[0.88rem] text-zinc-200">
-                        26세 · 서울 · 영화, 여행 좋아해요
-                      </p>
-                      <div className="mt-2.5 flex flex-wrap gap-3 text-[0.82rem] text-zinc-100">
-                        <span>#진솔한대화</span>
-                        <span>#여행메이트</span>
-                        <span>#취미공유</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 flex max-w-[28rem] gap-4">
-                      <button
-                        type="button"
-                        onClick={nextDesktopCard}
-                        className="flex h-[54px] flex-1 items-center justify-center gap-3 rounded-[16px] border border-[#2b3559] bg-[rgba(10,15,30,0.68)] text-[0.96rem] font-medium text-zinc-100 transition hover:border-[#3d4771] hover:bg-white/6"
-                      >
-                        <FiX className="text-[1.4rem]" />
-                        다음 사람
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleRequestChat()}
-                        disabled={requestChatMutation.isPending || loading}
-                        className="flex h-[54px] flex-1 items-center justify-center gap-3 rounded-[16px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-[0.96rem] font-semibold text-white shadow-[0_18px_34px_rgba(94,63,225,0.34)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        <FiHeart className="text-[1.2rem] fill-current" />
-                        매칭하기
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="relative z-10">
-                    <div className="absolute right-6 top-6 rounded-full bg-[#23c96c] px-4 py-2 text-[0.84rem] font-semibold text-white">
-                      ONLINE
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="desktop-panel">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <h3 className="desktop-section-title">실시간 매칭 카드</h3>
-                    <div className="flex items-center gap-2 desktop-meta">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                      현재 접속 중 128명
-                    </div>
-                  </div>
-                  <button type="button" className="flex items-center gap-2 desktop-meta">
-                    더보기
-                    <FiChevronRight />
-                  </button>
-                </div>
-
-                <div className="relative mt-5">
-                  <button
-                    type="button"
-                    onClick={prevDesktopCard}
-                    className="absolute left-[-26px] top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[rgba(8,13,28,0.92)] text-white shadow-[0_14px_28px_rgba(0,0,0,0.28)]"
-                  >
-                    <FiChevronLeft className="text-[1.25rem]" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextDesktopCard}
-                    className="absolute right-[-26px] top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[rgba(8,13,28,0.92)] text-white shadow-[0_14px_28px_rgba(0,0,0,0.28)]"
-                  >
-                    <FiChevronRight className="text-[1.25rem]" />
-                  </button>
-
-                  <div className="grid grid-cols-4 gap-4">
-                    {desktopVisibleCards.map((card) => (
-                      <article
-                        key={card.id}
-                        className="rounded-[18px] border border-white/6 bg-[linear-gradient(180deg,rgba(18,25,49,0.95),rgba(12,17,34,0.94))] px-4 py-4 text-center"
-                      >
-                        <div className="mx-auto h-20 w-20 overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#3d4a6d,#182033)]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img alt="" src="" className="h-full w-full object-cover opacity-0" />
-                        </div>
-                        <div className="mt-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <p className="text-[0.96rem] font-medium text-white">{card.name}</p>
-                            {card.online && <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />}
-                          </div>
-                          <p className="mt-2 text-[0.9rem] text-zinc-300">
-                            {card.age} · {card.location}
-                          </p>
-                          <div className="mt-2 space-y-1 text-[0.85rem] text-zinc-400">
-                            {card.tags.map((tag) => (
-                              <p key={tag}>{tag}</p>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="mt-4 inline-flex rounded-full bg-[linear-gradient(135deg,#5f47ee,#4933c7)] px-4 py-1.5 text-[0.82rem] font-medium text-white">
-                          ONLINE
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              </section>
-
-              <section className="desktop-panel">
-                <h3 className="desktop-section-title">신뢰 시스템 안내</h3>
-                <div className="mt-5 grid grid-cols-3 divide-x divide-white/8 overflow-hidden rounded-[16px]">
-                  {systemItems.map((item) => {
-                    const Icon = item.icon;
-
-                    return (
-                      <div key={item.title} className="flex items-center gap-4 px-5 py-1">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[rgba(98,79,255,0.12)]">
-                          <Icon
-                            className={cx(
-                              "text-[1.6rem]",
-                              item.title === "상호 평가 문화" && "text-amber-400",
-                              item.title === "신뢰 포인트" && "text-sky-400",
-                              item.title === "신원 인증 완료" && "text-zinc-100",
-                            )}
-                          />
-                        </div>
-                        <div>
-                          <p className="text-[0.95rem] font-medium text-white">{item.title}</p>
-                          <p className="mt-1 text-[0.88rem] text-zinc-400">{item.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <p className="px-2 text-[0.85rem] text-zinc-500">© 2024 조각. All rights reserved.</p>
-            </div>
-
-            <aside className="desktop-main-right">
-              <section className="desktop-side-panel">
-                <div className="flex items-center justify-between">
-                  <h3 className="desktop-side-title">오늘 남은 매칭 기회</h3>
-                  <span className="text-[1rem] text-white">3 / 5</span>
-                </div>
-                <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/8">
-                  <div className="h-full w-[72%] rounded-full bg-[linear-gradient(90deg,#6a49f3,#5a38ea,#7b5cf5)]" />
-                </div>
-              </section>
-
-              <section className="grid grid-cols-3 gap-3">
-                {desktopStats.map((stat) => {
-                  const Icon = stat.icon;
-
-                  return (
-                    <div
-                      key={stat.label}
-                      className="rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(14,19,38,0.98),rgba(11,16,31,0.96))] px-4 py-5 text-center"
-                    >
-                      <Icon className={cx("mx-auto text-[1.7rem]", stat.color)} />
-                      <p className="mt-4 text-[0.92rem] text-zinc-300">{stat.label}</p>
-                      <p className="mt-3 text-[1.05rem] font-semibold text-white">{stat.value}</p>
-                    </div>
-                  );
-                })}
-              </section>
-
-              <section className="desktop-accent-panel">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="desktop-side-title">오늘의 한마디</h3>
-                    <p className="mt-4 text-[1rem] text-white/95">
-                      “진짜 만남은 신뢰에서 시작됩니다.”
+                <div className="min-w-0 flex-1">
+                  {profileLoading ? (
+                    <Skeleton className="h-[1.9rem] w-20 rounded-md" />
+                  ) : (
+                    <p className="text-[1.9rem] font-semibold leading-none tracking-[-0.04em] text-white">
+                      {(profile?.hearts ?? 0).toLocaleString()}
                     </p>
-                  </div>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(116,69,255,0.28)] text-white/90">
-                    <FiMoreHorizontal className="text-[1.8rem]" />
-                  </div>
+                  )}
+                  <p className="mt-1.5 truncate text-[0.82rem] text-white/80">신뢰가 좋은 만남을 만들어요</p>
                 </div>
-              </section>
+              </div>
+              <Link
+                href="/points"
+                className="mt-4 block w-full rounded-[14px] bg-[rgba(255,255,255,0.12)] px-4 py-2.5 text-center text-[0.86rem] font-medium text-white transition hover:bg-[rgba(255,255,255,0.18)]"
+              >
+                포인트 내역
+              </Link>
+            </section>
 
-              <section className="desktop-side-panel">
-                <div className="flex items-center justify-between">
-                  <h3 className="desktop-side-title">공지사항</h3>
-                  <button type="button" className="flex items-center gap-2 text-[0.9rem] text-zinc-300">
-                    더보기
-                    <FiChevronRight />
-                  </button>
-                </div>
-                <div className="mt-5 space-y-4">
-                  {desktopNotices.map((notice) => (
-                    <div key={notice.title} className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <span className="h-2 w-2 rounded-full bg-violet-400" />
-                        <p className="text-[0.92rem] text-zinc-200">{notice.title}</p>
-                        {notice.isNew && (
-                          <span className="rounded-md bg-[#8f522c] px-2 py-0.5 text-[0.72rem] font-semibold text-orange-100">
-                            NEW
-                          </span>
+          </aside>
+
+          <main className="flex min-w-0 flex-col gap-5 xl:col-start-1 xl:row-start-1">
+            <HomeBanner />
+
+            <section>
+              <div className="flex items-center justify-between">
+                <h2 className="text-[1.25rem] font-semibold tracking-[-0.03em] text-white md:text-[1.35rem]">
+                  지금 올라온 매칭
+                  {!postsLoading && availablePosts.length > 0 && (
+                    <span className="ml-2 text-[0.9rem] font-medium text-violet-300">{availablePosts.length}</span>
+                  )}
+                </h2>
+                <Link
+                  href="/matching"
+                  className="flex items-center gap-0.5 text-[0.86rem] font-medium text-zinc-300 transition hover:text-white"
+                >
+                  전체 보기
+                  <FiChevronRight />
+                </Link>
+              </div>
+              {/* 옆으로 밀어서(가로 스크롤) 더 본다. 배너처럼 화살표로 넘기지 않는다. */}
+              <div className="-mx-1 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {postsLoading &&
+                  Array.from({ length: 4 }, (_, index) => (
+                    <Skeleton key={index} className="h-[184px] w-[42%] shrink-0 rounded-[18px] sm:w-[calc(25%-9px)]" />
+                  ))}
+                {!postsLoading && cardPosts.length === 0 && (
+                  <p className="w-full py-6 text-center text-[0.85rem] text-zinc-400">표시할 매칭 글이 없어요.</p>
+                )}
+                {!postsLoading &&
+                  cardPosts.map(({ post, online }, index) => (
+                    <Link
+                      key={`${post.postId}-${index}`}
+                      href="/matching"
+                      className="w-[42%] shrink-0 snap-start rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(18,25,49,0.95),rgba(12,17,34,0.94))] px-3 py-4 text-center shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-white/15 sm:w-[calc(25%-9px)]"
+                    >
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#3d4a6d,#182033)] text-[1rem] font-semibold text-zinc-200 md:h-16 md:w-16">
+                        {post.coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img alt="" src={post.coverUrl} className="h-full w-full object-cover" />
+                        ) : (
+                          post.userName.slice(0, 1)
                         )}
                       </div>
-                      <span className="shrink-0 text-[0.88rem] text-zinc-500">{notice.date}</span>
-                    </div>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <p className="line-clamp-1 text-[0.88rem] font-medium text-white">{post.userName}</p>
+                          {online && <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />}
+                        </div>
+                        <p className="mt-1.5 line-clamp-2 break-keep text-[0.78rem] text-zinc-300">{post.title}</p>
+                        {post.tags.length > 0 && (
+                          <p className="mt-1.5 line-clamp-1 text-[0.76rem] text-zinc-400">
+                            {post.tags.map((tag) => `#${tag}`).join(" ")}
+                          </p>
+                        )}
+                      </div>
+                      {online && (
+                        <div className="mt-3 inline-flex rounded-full bg-[linear-gradient(135deg,#5f47ee,#4933c7)] px-3 py-1.5 text-[0.7rem] font-medium text-white">
+                          ONLINE
+                        </div>
+                      )}
+                    </Link>
                   ))}
-                </div>
-              </section>
+              </div>
+            </section>
 
-              <section className="desktop-point-panel">
-                <h3 className="desktop-side-title">내 신뢰 포인트</h3>
-                <div className="mt-5 flex items-center gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5f50ff,#5640f0)]">
-                    <FiShield className="text-[1.75rem] text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[2rem] font-semibold leading-none tracking-[-0.04em] text-[#f1b8ff]">
-                      {trust.toLocaleString()}P
-                    </p>
-                    <p className="mt-2 text-[0.88rem] text-white/88">신뢰는 더 좋은 만남을 만듭니다.</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-[16px] bg-[rgba(255,255,255,0.12)] px-5 py-3 text-[0.92rem] font-medium text-white"
+            <section className="grid grid-cols-3 gap-2.5 md:gap-3">
+              {stats.map((stat) => {
+                const Icon = stat.icon;
+
+                return (
+                  <div
+                    key={stat.label}
+                    className="rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(15,19,36,0.98),rgba(10,13,25,0.98))] px-2 py-4 text-center md:py-5"
                   >
-                    포인트 내역
-                  </button>
-                </div>
-              </section>
+                    <Icon className={cx("mx-auto text-[1.35rem] md:text-[1.55rem]", stat.color)} />
+                    <p className="home-meta-text mt-2.5 text-zinc-300">{stat.label}</p>
+                    {stat.value === null ? (
+                      <Skeleton className="mx-auto mt-2 h-4 w-12 rounded-md" />
+                    ) : (
+                      <p className="mt-1.5 text-[0.95rem] font-semibold text-white md:text-[1.05rem]">{stat.value}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
 
-              <footer className="mt-auto flex items-center justify-end gap-8 px-1 text-[0.85rem] text-zinc-500">
+            <footer className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-1 text-[0.8rem] text-zinc-500">
+              <p>© 2024 조각. All rights reserved.</p>
+              <div className="flex gap-5">
                 <span>이용약관</span>
                 <span>개인정보처리방침</span>
                 <span>고객센터</span>
-              </footer>
-            </aside>
-          </div>
+              </div>
+            </footer>
+          </main>
         </div>
-      </div>
-
-      <div className="xl:hidden">
-        <header className="flex items-center justify-between px-5 pb-4 pt-4">
-          <h1 className="home-brand-title font-semibold text-white">조각</h1>
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <FiBell className="text-[1.7rem] text-white" />
-              <span className="absolute -right-1 top-0 h-3.5 w-3.5 rounded-full bg-[#8b5cf6]" />
-            </div>
-            <FiMenu className="text-[1.9rem] text-white" />
-          </div>
-        </header>
-
-        <main className="space-y-5 px-5 pb-32">
-          <section className="rounded-[22px] border border-white/7 bg-[linear-gradient(135deg,rgba(87,60,216,0.92),rgba(25,20,74,0.94))] px-5 py-4 shadow-[0_22px_42px_rgba(29,20,84,0.3)]">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5660ff,#5b4eff)]">
-                <FiShield className="text-[1.7rem] text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="home-point-value font-semibold text-white">{trust.toLocaleString()}P</p>
-                <p className="home-meta-text mt-1 text-white/88">신뢰는 더 좋은 만남을 만듭니다.</p>
-              </div>
-              <button
-                type="button"
-                className="shrink-0 rounded-full bg-[rgba(255,255,255,0.12)] px-4 py-2.5 text-[0.78rem] font-medium text-white"
-              >
-                포인트 내역
-              </button>
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="home-section-title font-semibold text-white">실시간 매칭</h2>
-                <div className="home-meta-text flex items-center gap-2 text-zinc-300">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  현재 접속 중 128명
-                </div>
-              </div>
-              <button type="button" className="home-meta-text flex items-center gap-2 text-zinc-300">
-                더보기
-                <FiChevronRight className="text-[1.2rem]" />
-              </button>
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-[22px] border border-white/7 bg-[linear-gradient(180deg,rgba(11,15,31,0.98),rgba(9,12,25,0.98))] shadow-[0_18px_36px_rgba(0,0,0,0.26)]">
-              <div className="relative min-h-[212px] overflow-hidden rounded-[22px]">
-                <div className="absolute inset-0 [background:radial-gradient(circle_at_16%_18%,rgba(255,255,255,0.14),transparent_6%),radial-gradient(circle_at_33%_18%,rgba(255,224,185,0.16),transparent_5%),radial-gradient(circle_at_53%_25%,rgba(182,228,255,0.16),transparent_4%),radial-gradient(circle_at_80%_14%,rgba(255,255,255,0.14),transparent_4%),radial-gradient(circle_at_72%_54%,rgba(255,227,205,0.15),transparent_5%),linear-gradient(135deg,#444a3b,#1b1f22_38%,#0b1020_68%,#1b2234)]" />
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,9,17,0.04),rgba(7,9,17,0.76))]" />
-                <div className="absolute inset-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" src="" className="h-full w-full scale-105 object-cover opacity-0" />
-                </div>
-                <div className="absolute right-4 top-4 rounded-full bg-[#23c96c] px-3 py-1 text-[0.72rem] font-semibold text-white">
-                  ONLINE
-                </div>
-
-                <div className="relative z-10 flex h-full flex-col justify-between px-4 pb-4 pt-5">
-                  <div>
-                    <h3 className="home-card-title font-semibold text-white">
-                      {mobileFeature.name}
-                    </h3>
-                    <p className="home-body-text mt-3 text-zinc-100">
-                      {mobileFeature.age} · {mobileFeature.location} · {mobileFeature.summary}
-                    </p>
-                    <div className="home-meta-text mt-3 flex flex-wrap gap-2 text-zinc-100">
-                      {mobileFeature.tags.map((tag) => (
-                        <span key={tag}>{tag}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5 pt-4">
-                    <button
-                      type="button"
-                      className="flex h-[42px] items-center justify-center gap-2 rounded-[14px] border border-[#31395c] bg-[rgba(10,15,30,0.62)] text-[0.78rem] font-medium text-zinc-100"
-                    >
-                      <FiX className="text-[1rem]" />
-                      다음 사람
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleRequestChat()}
-                      disabled={requestChatMutation.isPending || loading}
-                      className="flex h-[42px] items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7a53f5)] text-[0.78rem] font-semibold text-white shadow-[0_16px_28px_rgba(93,61,221,0.32)] disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      <FiHeart className="fill-current text-[0.92rem]" />
-                      매칭하기
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[22px] border border-white/7 bg-[linear-gradient(180deg,rgba(15,19,36,0.98),rgba(10,13,25,0.98))] px-5 py-4">
-            <div className="home-body-text flex items-center gap-4 text-white">
-              <span>오늘 남은 매칭 기회</span>
-              <span className="font-semibold">3/5</span>
-            </div>
-            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full w-[64%] rounded-full bg-[linear-gradient(90deg,#7d55ff,#8156f4,#5940d8)]" />
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center justify-between">
-              <h2 className="home-section-title font-semibold text-white">실시간 매칭 카드</h2>
-              <button type="button" className="home-meta-text flex items-center gap-2 text-zinc-300">
-                더보기
-                <FiChevronRight className="text-[1rem]" />
-              </button>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {mobileCards.map((card) => (
-                <article
-                  key={card.id}
-                  className="rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(18,25,49,0.95),rgba(12,17,34,0.94))] px-3 py-3.5 text-center shadow-[0_16px_32px_rgba(0,0,0,0.24)]"
-                >
-                  <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#3d4a6d,#182033)]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img alt="" src="" className="h-full w-full object-cover opacity-0" />
-                  </div>
-                  <div className="mt-2.5">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <p className="text-[0.84rem] font-medium text-white">{card.name}</p>
-                      {card.online && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
-                    </div>
-                    <p className="mt-1.5 text-[0.74rem] text-zinc-300">
-                      {card.age} · {card.location}
-                    </p>
-                  </div>
-                  <div className="mt-2.5 inline-flex rounded-full bg-[linear-gradient(135deg,#5f47ee,#4933c7)] px-3 py-1.5 text-[0.68rem] font-medium text-white">
-                    ONLINE
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <h2 className="home-section-title font-semibold text-white">신뢰 시스템</h2>
-            <div className="mt-4 rounded-[22px] border border-white/7 bg-[linear-gradient(180deg,rgba(15,19,36,0.98),rgba(10,13,25,0.98))] px-3 py-5">
-              <div className="grid grid-cols-3 divide-x divide-white/8">
-                {systemItems.map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <div key={item.title} className="px-3 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(90,82,160,0.18)]">
-                        <Icon
-                          className={cx(
-                            "text-[1.35rem]",
-                            item.title === "상호 평가 문화" && "text-amber-400",
-                            item.title === "신뢰 포인트" && "text-sky-400",
-                            item.title === "신원 인증 완료" && "text-zinc-100",
-                          )}
-                        />
-                      </div>
-                      <p className="home-meta-text mt-3 font-medium text-white">{item.title}</p>
-                      <p className="home-meta-text mt-1.5 text-zinc-400">{item.description}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-[22px] border border-white/7 bg-[linear-gradient(135deg,rgba(68,40,156,0.84),rgba(35,22,80,0.88))] px-5 py-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="home-section-title font-semibold text-white">오늘의 한마디</h2>
-                <p className="home-body-text mt-3 text-white/92">“진짜 만남은 신뢰에서 시작됩니다.”</p>
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(122,72,255,0.26)] text-white/90">
-                <FiMoreHorizontal className="text-[1.5rem]" />
-              </div>
-            </div>
-          </section>
-        </main>
-
-        <nav className="fixed bottom-0 left-0 right-0 z-[90] border-t border-white/8 bg-[linear-gradient(180deg,rgba(9,13,29,0.98),rgba(7,10,22,1))] px-3 py-1.5 backdrop-blur-xl pointer-events-auto">
-          <div className="grid grid-cols-5 gap-2">
-            {mobileTabs.map((tab) => {
-              const Icon = tab.icon;
-              const content = (
-                <div
-                  className={cx(
-                    "flex flex-col items-center justify-center gap-1 rounded-[16px] py-1 font-medium pointer-events-auto",
-                    tab.active ? "text-[#8a5dff]" : "text-zinc-400",
-                  )}
-                >
-                  <Icon className={cx("text-[1.18rem]", tab.active && "fill-current")} />
-                  <span className="home-tab-text">{tab.label}</span>
-                </div>
-              );
-
-              return (
-                <Link key={tab.label} href={tab.href} className="block">
-                  {content}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      </div>
 
       {error && (
         <div className="fixed right-4 top-4 z-50 rounded-2xl border border-rose-400/20 bg-rose-950/80 px-4 py-3 text-sm text-rose-100 shadow-xl">
           {error}
         </div>
       )}
-    </div>
+    </MainLayout>
   );
 }

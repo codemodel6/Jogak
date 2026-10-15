@@ -126,7 +126,9 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans:
+    var(--font-pretendard), -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
   --font-mono: var(--font-geist-mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -783,5 +785,12 @@
 
   .desktop-meta {
     @apply text-[0.9rem] text-zinc-300;
+  }
+}
+
+/* 스켈레톤 UI: 회색 블록 위로 빛이 지나가는 효과 (shared/ui/skeleton.tsx) */
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }

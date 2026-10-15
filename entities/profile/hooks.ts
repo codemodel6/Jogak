@@ -13,6 +13,14 @@ export function useProfileQuery(enabled = true) {
   });
 }
 
+export function useUserProfileQuery(userId: string | null) {
+  return useQuery({
+    queryKey: [...profileKeys.me(), "user", userId],
+    queryFn: () => api.getUserProfile(userId ?? ""),
+    enabled: Boolean(userId),
+  });
+}
+
 export function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
 
@@ -40,5 +48,33 @@ export function useDeletePhotoMutation() {
     mutationFn: api.deletePhoto,
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
+  });
+}
+
+export function useReplacePhotoMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.replacePhoto,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
+  });
+}
+
+export function useRecoverTrustMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.recoverTrust,
+    onSuccess: (data) => queryClient.setQueryData(profileKeys.me(), data),
+  });
+}
+
+export function useCompleteOnboardingMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.completeOnboarding,
+    onSuccess: (data) => queryClient.setQueryData(profileKeys.me(), data),
   });
 }

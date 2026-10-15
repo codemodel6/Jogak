@@ -1,135 +1,84 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ChangeEvent, ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FiBell,
+  FiCalendar,
   FiCamera,
   FiChevronDown,
   FiChevronRight,
-  FiEdit3,
   FiFlag,
-  FiHeart,
-  FiHome,
-  FiLock,
-  FiMapPin,
-  FiMenu,
   FiMessageCircle,
   FiMoreHorizontal,
+  FiHeart,
+  FiMinus,
+  FiPlus,
+  FiRefreshCw,
   FiSettings,
-  FiShield,
   FiStar,
+  FiTrendingUp,
   FiUser,
   FiUsers,
+  FiX,
 } from "react-icons/fi";
-import { PiDiamondLight } from "react-icons/pi";
 
+import { useMyActivityQuery } from "@/entities/activity/hooks";
 import type { Profile } from "@/entities/profile";
 import {
   useDeletePhotoMutation,
   useProfileQuery,
+  useRecoverTrustMutation,
+  useReplacePhotoMutation,
   useUpdateProfileMutation,
   useUploadPhotoMutation,
 } from "@/entities/profile/hooks";
+import { TRUST_RECOVERY_COST_PER_SCORE } from "@/entities/profile/api";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
+import { TRUST_GRADES, estimateTopPercent, getTrustGrade } from "@/shared/lib/trust";
+import Skeleton from "@/shared/ui/skeleton";
+import TrustCrystalIcon from "@/shared/ui/trust-crystal-icon";
+import TrustGradeEmblem from "@/shared/ui/trust-grade-emblem";
+import MainLayout from "@/widgets/main-layout";
 
 type EditableProfile = {
   name: string;
+  gender: string;
   age: string;
-  location: string;
   height: string;
+  mbti: string;
+  purpose: string;
+  introduction: string;
 };
 
 type ProfileRow = {
   icon: ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  // 수정 가능한 항목만 지정한다. 없으면 수정 중에도 글자로 보인다.
+  editKey?: keyof EditableProfile;
+  options?: string[];
+  suffix?: string;
 };
+
+const MAX_PHOTOS = 3;
+const MAX_INTRO_LENGTH = 20;
+// 온보딩에서 고르는 목적과 같은 목록
+const PURPOSE_OPTIONS = ["재미", "헌팅", "친목", "진지한 만남", "술 한잔", "대화 상대"];
+
+const MBTI_OPTIONS = [
+  "ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP",
+  "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ",
+];
 
 type StatCard = {
   icon: ComponentType<{ className?: string }>;
   label: string;
   value: string;
   accentClassName: string;
+  href?: string;
 };
-
-type ActivityItem = {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  date: string;
-  accentClassName: string;
-};
-
-type SettingItem = {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  action: "edit" | "notifications" | "block" | "account";
-};
-
-const desktopNav = [
-  { label: "홈", icon: FiHome, href: "/home" },
-  { label: "매칭", icon: FiHeart, href: "/matching" },
-  { label: "채팅", icon: FiMessageCircle, href: "/chats", badge: "3" },
-  { label: "포인트", icon: PiDiamondLight },
-  { label: "내 정보", icon: FiUser, href: "/profile", active: true },
-  { label: "알림", icon: FiBell, badge: "2" },
-];
-
-const mobileTabs = [
-  { label: "홈", icon: FiHome, href: "/home" },
-  { label: "매칭", icon: FiHeart, href: "/matching" },
-  { label: "채팅", icon: FiMessageCircle, href: "/chats", badge: "3" },
-  { label: "포인트", icon: PiDiamondLight, href: "/profile" },
-  { label: "마이", icon: FiUser, href: "/profile", active: true },
-];
-
-const statCards: StatCard[] = [
-  { icon: FiUsers, label: "매칭 성공", value: "24건", accentClassName: "text-violet-400" },
-  { icon: FiMessageCircle, label: "받은 후기", value: "18개", accentClassName: "text-violet-400" },
-  { icon: FiMoreHorizontal, label: "응답률", value: "92%", accentClassName: "text-indigo-400" },
-  { icon: FiStar, label: "평균 평점", value: "4.8 / 5.0", accentClassName: "text-amber-400" },
-];
-
-const activityItems: ActivityItem[] = [
-  {
-    icon: FiHome,
-    title: "영화 보면서 이야기 나눌 분 찾습니다",
-    description: "대화 요청을 받았습니다.",
-    date: "05.21",
-    accentClassName: "bg-violet-500/16 text-violet-300",
-  },
-  {
-    icon: FiUsers,
-    title: "퇴근 후 가볍게 맛집 탐방 할 사람!",
-    description: "상대방과 매칭이 성사되었습니다.",
-    date: "05.20",
-    accentClassName: "bg-emerald-500/16 text-emerald-300",
-  },
-  {
-    icon: FiCamera,
-    title: "주말에 전시회나 브런치 즐겨요",
-    description: "대화에 참여했습니다.",
-    date: "05.19",
-    accentClassName: "bg-indigo-500/16 text-indigo-200",
-  },
-];
-
-const settingItems: SettingItem[] = [
-  { icon: FiEdit3, label: "프로필 수정", action: "edit" },
-  { icon: FiBell, label: "알림 설정", action: "notifications" },
-  { icon: FiLock, label: "차단 관리", action: "block" },
-  { icon: FiSettings, label: "계정 설정", action: "account" },
-];
-
-const trustChecks = [
-  { label: "본인 인증 완료", value: "완료", valueClassName: "text-emerald-400" },
-  { label: "평가 완료 횟수", value: "24회", valueClassName: "text-zinc-200" },
-  { label: "신고 이력", value: "없음", valueClassName: "text-lime-200" },
-  { label: "이용 규칙 위반", value: "없음", valueClassName: "text-lime-200" },
-];
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -143,8 +92,11 @@ function createEditableProfile(profile: Profile | null): EditableProfile {
   return {
     name: profile?.name ?? "",
     age: profile?.age ?? "",
-    location: profile?.location ?? "",
+    gender: profile?.gender ?? "",
     height: profile?.height ?? "",
+    mbti: profile?.mbti ?? "",
+    purpose: profile?.purpose ?? "",
+    introduction: profile?.introduction ?? "",
   };
 }
 
@@ -213,8 +165,11 @@ export default function ProfilePage() {
   const [editedProfile, setEditedProfile] = useState<EditableProfile>({
     name: "",
     age: "",
-    location: "",
+    gender: "",
     height: "",
+    mbti: "",
+    purpose: "",
+    introduction: "",
   });
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -222,9 +177,23 @@ export default function ProfilePage() {
   const { data: isAuthenticated } = useAuthStatusQuery();
   const queryEnabled = isAuthenticated === true;
   const profileQuery = useProfileQuery(queryEnabled);
+  const activityQuery = useMyActivityQuery(queryEnabled);
+  // 서버 화면과 브라우저 첫 화면을 같게(스켈레톤) 그린다
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const updateProfileMutation = useUpdateProfileMutation();
   const uploadPhotoMutation = useUploadPhotoMutation();
   const deletePhotoMutation = useDeletePhotoMutation();
+  const replacePhotoMutation = useReplacePhotoMutation();
+  const [photoManagerOpen, setPhotoManagerOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryScore, setRecoveryScore] = useState(1);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const recoverTrustMutation = useRecoverTrustMutation();
+  const [photoTarget, setPhotoTarget] = useState<number | "add" | null>(null);
 
   useEffect(() => {
     if (isAuthenticated === false) {
@@ -240,27 +209,40 @@ export default function ProfilePage() {
     }
   }, [editing, profile]);
 
-  const displayName = (profile?.name ?? "").trim() || "김신뢰";
-  const displayAge = (profile?.age ?? "").trim() || "28";
-  const displayLocation = (profile?.location ?? "").trim() || "서울 강남구";
-  const displayHeight = (profile?.height ?? "").trim() || "165cm";
+  const displayName = (profile?.name ?? "").trim() || "이름 없음";
+  const displayAge = (profile?.age ?? "").trim();
+  const displayHeight = (profile?.height ?? "").trim();
   const displayPhoto = profile?.photos?.[0];
-  const trustPoints = profile?.hearts ?? 1240;
-  const trustScore = Math.max(70, Math.min(99, Math.round(trustPoints / 14)));
-  const trustScoreRatio = Math.min(100, trustScore);
-  const pointRatio = Math.min(100, Math.round((trustPoints / 2000) * 100));
+  const trustPoints = profile?.hearts ?? 0;
+  const trustScore = profile?.trustScore ?? 70;
+  // 실제 순위 집계 전까지는 신뢰 점수로 상위 %를 추정한다 (100점 = 상위 1%, 70점 = 상위 30%).
+  // 회원이 쌓이면 이 값만 DB 순위 집계로 바꾸면 등급·막대가 그대로 따라간다.
+  const trustTopPercent = estimateTopPercent(trustScore);
+  const { grade: trustGrade } = getTrustGrade(trustTopPercent);
+  // 막대 칸 폭은 barWidth(블랙은 실제 5%보다 넓게, 그래도 가장 좁게), 점은 현재 등급 칸 안에서 순위 비율만큼 이동한다.
+  const trustGradeIndex = TRUST_GRADES.indexOf(trustGrade);
+  const trustGradeStart = TRUST_GRADES.slice(0, trustGradeIndex).reduce((sum, grade) => sum + grade.barWidth, 0);
+  const trustGradeFloor = TRUST_GRADES[trustGradeIndex + 1]?.maxTop ?? 0;
+  const trustPosition =
+    trustGradeStart +
+    (trustGrade.barWidth * (trustGrade.maxTop - trustTopPercent)) / (trustGrade.maxTop - trustGradeFloor);
 
   const profileRows: ProfileRow[] = [
-    { icon: FiMapPin, label: "거주지", value: displayLocation },
-    { icon: FiBriefcasePlaceholder, label: "직업", value: "마케터" },
-    { icon: FiSmilePlaceholder, label: "MBTI", value: "INFJ" },
-    { icon: FiHeart, label: "관심사", value: "여행, 영화, 카페투어, 독서, 요가" },
+    { icon: FiUser, label: "닉네임", value: displayName, editKey: "name" },
+    { icon: FiUsers, label: "성별", value: profile?.gender || "-", editKey: "gender", options: ["남성", "여성"] },
+    { icon: FiCalendar, label: "나이", value: displayAge ? `${displayAge}세` : "-", editKey: "age", suffix: "세" },
     {
-      icon: FiEdit3,
-      label: "자기소개",
-      value: "따뜻하고 긍정적인 사람입니다. 서로의 가치를 존중하며 함께 성장할 수 있는 인연을 찾고 있어요. 🙂",
+      icon: FiTrendingUp,
+      label: "키",
+      value: displayHeight ? `${displayHeight.replace(/cm$/, "")}cm` : "-",
+      editKey: "height",
+      suffix: "cm",
     },
+    { icon: FiSmilePlaceholder, label: "MBTI", value: profile?.mbti || "-", editKey: "mbti", options: MBTI_OPTIONS },
+    { icon: FiHeart, label: "목적", value: profile?.purpose || "-", editKey: "purpose", options: PURPOSE_OPTIONS },
   ];
+
+  const introduction = profile?.introduction ?? "";
 
   const queryError =
     profileQuery.error instanceof Error
@@ -295,31 +277,39 @@ export default function ProfilePage() {
     }
   };
 
-  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const photos = profile?.photos ?? [];
+
+  const openPhotoPicker = (target: number | "add") => {
+    setPhotoTarget(target);
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
+    event.target.value = "";
+    if (!file || photoTarget === null) {
       return;
     }
 
     try {
-      await uploadPhotoMutation.mutateAsync(file);
-      setSuccessMessage("프로필 사진을 업데이트했습니다.");
+      if (photoTarget === "add") {
+        await uploadPhotoMutation.mutateAsync(file);
+      } else {
+        await replacePhotoMutation.mutateAsync({ index: photoTarget, file });
+      }
+      setSuccessMessage("프로필 사진을 저장했습니다.");
       setActionError(null);
     } catch (err) {
       setSuccessMessage(null);
-      setActionError(err instanceof Error ? err.message : "사진 업로드에 실패했습니다.");
+      setActionError(err instanceof Error ? err.message : "사진 저장에 실패했습니다.");
     } finally {
-      event.target.value = "";
+      setPhotoTarget(null);
     }
   };
 
-  const handleDeletePhoto = async () => {
-    if (!profile?.photos?.length) {
-      return;
-    }
-
+  const handlePhotoDelete = async (index: number) => {
     try {
-      await deletePhotoMutation.mutateAsync(0);
+      await deletePhotoMutation.mutateAsync(index);
       setSuccessMessage("프로필 사진을 삭제했습니다.");
       setActionError(null);
     } catch (err) {
@@ -328,855 +318,602 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSettingAction = (action: SettingItem["action"]) => {
-    if (action === "edit") {
-      handleStartEditing();
-      return;
-    }
+  const maxRecoverable = Math.max(0, 100 - trustScore);
+  const affordable = Math.floor(trustPoints / TRUST_RECOVERY_COST_PER_SCORE);
+  const recoveryLimit = Math.min(maxRecoverable, affordable);
+  const recoveryCost = recoveryScore * TRUST_RECOVERY_COST_PER_SCORE;
 
-    setSuccessMessage(null);
-    setActionError("이 메뉴는 아직 준비 중입니다.");
+  const openRecovery = () => {
+    setRecoveryScore(Math.min(5, Math.max(1, recoveryLimit)));
+    setRecoveryError(null);
+    setRecoveryOpen(true);
   };
 
-  if (profileQuery.isPending && !profile) {
+  const changeRecoveryScore = (value: number) => {
+    setRecoveryError(null);
+    setRecoveryScore(Math.max(1, Math.min(value, Math.max(1, maxRecoverable))));
+  };
+
+  const handleRecoverTrust = async () => {
+    try {
+      await recoverTrustMutation.mutateAsync(recoveryScore);
+      setRecoveryOpen(false);
+      setActionError(null);
+      setSuccessMessage(`신뢰 점수 ${recoveryScore}점을 회복했습니다.`);
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : "신뢰 회복에 실패했습니다.");
+    }
+  };
+
+  // 활동 통계는 내 활동 화면과 같은 실제 집계를 쓴다
+  const activity = activityQuery.data;
+  const statCards: StatCard[] | null = activity
+    ? [
+        { icon: FiUsers, label: "매칭 성공", value: `${activity.metCount}건`, accentClassName: "text-violet-400", href: "/activity" },
+        { icon: FiMessageCircle, label: "받은 후기", value: `${activity.reviewCount}개`, accentClassName: "text-violet-400", href: "/reviews?tab=received" },
+        {
+          icon: FiMoreHorizontal,
+          label: "응답률",
+          value: activity.responseRate === null ? "-" : `${activity.responseRate}%`,
+          accentClassName: "text-indigo-400",
+          href: "/activity",
+        },
+        {
+          icon: FiStar,
+          label: "평균 평점",
+          value: activity.averageRating === null ? "-" : `${activity.averageRating.toFixed(1)} / 5.0`,
+          accentClassName: "text-amber-400",
+          href: "/reviews?tab=received",
+        },
+      ]
+    : null;
+
+  const photoBusy =
+    uploadPhotoMutation.isPending || replacePhotoMutation.isPending || deletePhotoMutation.isPending;
+
+  if (!mounted || (profileQuery.isPending && !profile)) {
     return (
-      <div className="app-frame flex min-h-screen items-center justify-center px-5">
-        <div className="surface-panel w-full max-w-2xl text-center">
-          <h1 className="section-title">내 정보를 불러오는 중입니다</h1>
-          <p className="section-copy">잠시만 기다려 주세요.</p>
+      <MainLayout active="profile" title="내 정보" copy="회원님의 정보를 확인하고 관리하세요.">
+        <div className="mt-5 flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="surface-panel flex items-center gap-5 px-5 py-6">
+              <Skeleton className="h-24 w-24 shrink-0 rounded-full md:h-28 md:w-28" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-8 w-40 rounded-md" />
+                <Skeleton className="h-4 w-56 rounded-md" />
+              </div>
+            </div>
+            <Skeleton className="h-[320px] rounded-[22px]" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            <Skeleton className="h-[180px] rounded-[22px]" />
+            <Skeleton className="h-[220px] rounded-[22px]" />
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
+  // 모바일에서는 한 열로 order 순서대로, PC에서는 가운데 열과 오른쪽 단으로 나뉜다.
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(74,51,181,0.24),transparent_22%),radial-gradient(circle_at_top_right,rgba(41,16,109,0.14),transparent_18%),linear-gradient(180deg,#070b1c,#040814)] text-white">
-      <div className="desktop-screen">
-        <aside className="desktop-sidebar">
-          <div className="desktop-brand">
-            <div className="desktop-brand-badge">
-              <FiShield className="text-[1.1rem]" />
-            </div>
-            <p className="desktop-brand-text">TrustMate</p>
-          </div>
-
-          <nav className="desktop-nav">
-            {desktopNav.map((item) => {
-              const Icon = item.icon;
-              const content = (
-                <div
-                  className={cx(
-                    "desktop-nav-item justify-between",
-                    item.active && "desktop-nav-item-active",
-                  )}
-                >
-                  <span className="flex items-center gap-4">
-                    <Icon className="desktop-nav-icon" />
-                    <span>{item.label}</span>
-                  </span>
-                  {item.badge && (
-                    <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#ff3b46] px-1 text-[0.75rem] font-semibold text-white">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              );
-
-              if (item.href) {
-                return (
-                  <Link key={item.label} href={item.href}>
-                    {content}
-                  </Link>
-                );
-              }
-
-              return (
-                <button key={item.label} type="button" className="block w-full text-left">
-                  {content}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="mt-6 rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(19,24,48,0.96),rgba(13,17,35,0.96))] px-5 py-5 shadow-[0_20px_44px_rgba(0,0,0,0.24)]">
-            <p className="text-[0.92rem] text-zinc-300">내 신뢰 포인트</p>
-            <div className="mt-5 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5d4bff,#5136d8)] text-white">
-                <FiShield className="text-[1.25rem]" />
-              </div>
-              <div>
-                <p className="text-[1.8rem] font-semibold leading-none tracking-[-0.04em] text-white">
-                  {trustPoints.toLocaleString()}P
-                </p>
-              </div>
-            </div>
-            <p className="mt-3 text-[0.88rem] leading-6 text-zinc-400">
-              신뢰는 더 좋은 만남을 만듭니다.
-            </p>
-            <button type="button" className="mt-5 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[rgba(109,89,255,0.16)] px-4 py-2.5 text-[0.9rem] font-medium text-white transition hover:bg-[rgba(109,89,255,0.24)]">
-              포인트 내역
-              <FiChevronRight />
-            </button>
-          </div>
-
-          <div className="mt-auto flex items-center gap-3 px-2 pt-6">
-            <ProfileAvatar name={displayName} photo={displayPhoto} sizeClassName="h-12 w-12" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[1rem] font-medium text-white">{displayName}</p>
-              <p className="text-[0.84rem] text-zinc-400">프로필 보기</p>
-            </div>
-            <FiChevronRight className="text-zinc-400" />
-          </div>
-        </aside>
-
-        <div className="desktop-content">
-          <header className="desktop-header">
-            <div>
-              <h1 className="desktop-header-title">내 정보</h1>
-              <p className="desktop-header-copy">회원님의 정보를 확인하고 관리하세요.</p>
-            </div>
-            <div className="desktop-header-actions">
-              <div className="relative">
-                <FiBell className="text-[1.45rem] text-white" />
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#6f56ff] px-1 text-[0.68rem] font-semibold text-white">
-                  3
-                </span>
-              </div>
-              <div className="desktop-header-avatar">
-                <ProfileAvatar name={displayName} photo={displayPhoto} sizeClassName="h-11 w-11" />
-                <span className="desktop-header-avatar-name">{displayName}</span>
-                <FiChevronDown className="text-[1.2rem] text-zinc-300" />
-              </div>
-            </div>
-          </header>
-
-          {(error || successMessage) && (
-            <div className="px-2 pt-3">
-              {error && <div className="alert-error">{error}</div>}
-              {!error && successMessage && <div className="alert-success">{successMessage}</div>}
-            </div>
-          )}
-
-          <main className="desktop-main space-y-5">
-            <section className="grid gap-5 2xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
-              <div className="surface-panel overflow-hidden p-0">
-                <div className="grid gap-4 px-6 py-5 lg:grid-cols-[auto_minmax(0,1fr)_190px]">
-                  <div className="relative w-fit">
-                    <ProfileAvatar name={displayName} photo={displayPhoto} sizeClassName="h-28 w-28" />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[rgba(16,20,40,0.9)] text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition hover:bg-white/10"
-                      aria-label="프로필 사진 업로드"
-                    >
-                      <FiCamera className="text-lg" />
-                    </button>
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="text-[1.95rem] font-semibold leading-none tracking-[-0.04em] text-white">
-                        {editing ? editedProfile.name || "이름을 입력하세요" : displayName}
-                      </h2>
-                      <span className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,rgba(105,73,255,0.36),rgba(82,56,184,0.32))] px-3 py-1.5 text-[0.82rem] font-medium text-violet-100">
-                        <FiStar className="text-sm" />
-                        Premium
-                      </span>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[0.95rem] text-zinc-200">
-                      <span>{editing ? editedProfile.age || "나이" : `${displayAge}세`}</span>
-                      <span className="text-zinc-500">·</span>
-                      <span className="flex items-center gap-2">
-                        {editing ? editedProfile.location || "지역" : displayLocation}
-                        <FiMapPin className="text-zinc-400" />
-                      </span>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="badge-accent border-0 bg-[rgba(98,64,255,0.18)] text-violet-100">본인 인증</span>
-                      <span className="badge-accent border-0 bg-[rgba(31,163,92,0.18)] text-emerald-200">휴대폰 인증</span>
-                      <span className="badge-accent border-0 bg-[rgba(44,119,226,0.18)] text-sky-100">이메일 인증</span>
-                    </div>
-
-                    {editing ? (
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <label className="label-text">
-                          이름
-                          <input
-                            className="input-field"
-                            value={editedProfile.name}
-                            onChange={(event) =>
-                              setEditedProfile((prev) => ({ ...prev, name: event.target.value }))
-                            }
-                          />
-                        </label>
-                        <label className="label-text">
-                          나이
-                          <input
-                            className="input-field"
-                            value={editedProfile.age}
-                            onChange={(event) =>
-                              setEditedProfile((prev) => ({ ...prev, age: event.target.value }))
-                            }
-                          />
-                        </label>
-                        <label className="label-text">
-                          지역
-                          <input
-                            className="input-field"
-                            value={editedProfile.location}
-                            onChange={(event) =>
-                              setEditedProfile((prev) => ({ ...prev, location: event.target.value }))
-                            }
-                          />
-                        </label>
-                        <label className="label-text">
-                          키
-                          <input
-                            className="input-field"
-                            value={editedProfile.height}
-                            onChange={(event) =>
-                              setEditedProfile((prev) => ({ ...prev, height: event.target.value }))
-                            }
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <div className="mt-4 space-y-1 text-[0.98rem] leading-7 text-zinc-200">
-                        <p>진실한 만남을 찾고 있어요.</p>
-                        <p>좋은 인연을 만나고 싶습니다.</p>
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap gap-2.5">
-                      {editing ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void handleSave()}
-                            disabled={updateProfileMutation.isPending}
-                            className="btn-primary"
-                          >
-                            {updateProfileMutation.isPending ? "저장 중..." : "저장하기"}
-                          </button>
-                          <button type="button" onClick={handleCancelEditing} className="btn-secondary">
-                            취소
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button type="button" onClick={handleStartEditing} className="btn-primary">
-                            프로필 수정
-                          </button>
-                          {displayPhoto && (
-                            <button
-                              type="button"
-                              onClick={() => void handleDeletePhoto()}
-                              disabled={deletePhotoMutation.isPending}
-                              className="btn-secondary"
-                            >
-                              {deletePhotoMutation.isPending ? "삭제 중..." : "사진 삭제"}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-white/8 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-                    <p className="text-[0.95rem] text-zinc-300">신뢰 등급</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,rgba(111,82,18,0.92),rgba(58,37,6,0.94))] shadow-[0_20px_36px_rgba(44,29,5,0.24)]">
-                        <FiStar className="text-[1.55rem] text-amber-300" />
-                      </div>
-                      <div>
-                        <p className="text-[1.55rem] font-semibold tracking-[-0.04em] text-amber-300">GOLD</p>
-                        <p className="mt-2 text-[0.95rem] text-zinc-200">상위 23%</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-1">
-                <div className="surface-panel">
-                  <p className="text-[0.95rem] text-zinc-300">신뢰 점수</p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#5f4dff,#4837cf)] text-white shadow-[0_18px_34px_rgba(79,61,221,0.28)]">
-                      <FiShield className="text-[1.35rem]" />
-                    </div>
-                    <div>
-                      <p className="text-[2.35rem] font-semibold leading-none tracking-[-0.05em] text-white">
-                        {trustScore}
-                        <span className="ml-1 text-[1.2rem]">점</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 inline-flex rounded-full bg-[rgba(110,92,255,0.16)] px-3 py-1.5 text-[0.82rem] font-medium text-violet-200">
-                    상위 15%
-                  </div>
-                  <p className="mt-3 text-[0.95rem] text-zinc-200">다음 등급까지 8점 남았어요!</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,#7d55ff,#8156f4,#5940d8)]"
-                      style={{ width: `${trustScoreRatio}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-right text-[0.86rem] text-zinc-400">{trustScore} / 100</p>
-                </div>
-
-                <div className="surface-panel">
-                  <p className="text-[0.95rem] text-zinc-300">신뢰 포인트</p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#6e5dff,#4b34d8)] text-white shadow-[0_18px_34px_rgba(79,61,221,0.28)]">
-                      <PiDiamondLight className="text-[1.4rem]" />
-                    </div>
-                    <div>
-                      <p className="text-[2.35rem] font-semibold leading-none tracking-[-0.05em] text-white">
-                        {trustPoints.toLocaleString()}P
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-9 text-[0.95rem] text-zinc-200">다음 등급까지 760P</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,#7d55ff,#8156f4,#5940d8)]"
-                      style={{ width: `${pointRatio}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-right text-[0.86rem] text-zinc-400">
-                    {trustPoints.toLocaleString()} / 2,000P
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="grid gap-5 2xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.68fr)_minmax(0,0.64fr)]">
-              <div className="surface-panel">
-                <SectionHeader
-                  title="프로필 정보"
-                  actionLabel={editing ? undefined : "수정하기"}
-                  onAction={editing ? undefined : handleStartEditing}
-                />
-                <div className="mt-5 space-y-3">
-                  {profileRows.map((row, index) => {
-                    const Icon = row.icon;
-
-                    return (
-                      <div
-                        key={row.label}
-                        className={cx(
-                          "grid gap-2 border-white/8 pb-3 md:grid-cols-[132px_minmax(0,1fr)]",
-                          index < profileRows.length - 1 && "border-b",
-                        )}
-                      >
-                        <div className="flex items-center gap-4 text-zinc-200">
-                          <Icon className="text-[1.15rem] text-violet-400" />
-                          <span className="text-[0.95rem]">{row.label}</span>
-                        </div>
-                        <p className="text-[0.95rem] leading-6 text-zinc-100">
-                          {row.label === "거주지" && editing ? editedProfile.location || row.value : row.value}
-                          {row.label === "자기소개" && (
-                            <span className="block text-[0.82rem] text-zinc-400">
-                              키 {editing ? editedProfile.height || displayHeight : displayHeight}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="surface-panel">
-                <SectionHeader title="활동 통계" />
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  {statCards.map((stat) => {
-                    const Icon = stat.icon;
-
-                    return (
-                      <div key={stat.label} className="surface-panel-soft px-4 py-4 text-center">
-                        <Icon className={cx("mx-auto text-[1.35rem]", stat.accentClassName)} />
-                        <p className="mt-2 text-[0.86rem] text-zinc-300">{stat.label}</p>
-                        <p className="mt-2 text-[1.6rem] font-semibold leading-none tracking-[-0.04em] text-white">
-                          {stat.value}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-                <button type="button" className="mt-4 flex w-full items-center justify-center gap-2 text-[0.82rem] font-medium text-violet-300 transition hover:text-violet-200">
-                  활동 내역 더보기
-                  <FiChevronRight />
-                </button>
-              </div>
-
-              <div className="surface-panel">
-                <SectionHeader title="신뢰 시스템" />
-                <div className="mt-5 space-y-3">
-                  {trustChecks.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 text-zinc-200">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(109,89,255,0.16)] text-violet-300">
-                          <FiShield className="text-[0.9rem]" />
-                        </div>
-                        <span className="text-[0.9rem]">{item.label}</span>
-                      </div>
-                      <span className={cx("text-[0.88rem] font-medium", item.valueClassName)}>{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 border-t border-white/8 pt-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[0.95rem] font-medium text-white">신뢰 배지</p>
-                    <button type="button" className="flex items-center gap-1 text-[0.82rem] font-medium text-violet-300 transition hover:text-violet-200">
-                      더 보기
-                      <FiChevronRight />
-                    </button>
-                  </div>
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5e4eff,#302788)] text-white">
-                      <FiShield className="text-[1.15rem]" />
-                    </div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6b4d13,#3c2808)] text-amber-300">
-                      <FiStar className="text-[1.15rem]" />
-                    </div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f4d8f,#0a2544)] text-sky-300">
-                      <PiDiamondLight className="text-[1.15rem]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="grid gap-5 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.52fr)]">
-              <div className="surface-panel">
-                <SectionHeader title="나의 최근 활동" />
-                <div className="mt-5 space-y-3">
-                  {activityItems.map((item, index) => {
-                    const Icon = item.icon;
-
-                    return (
-                      <div
-                        key={item.title}
-                        className={cx(
-                          "flex items-start justify-between gap-4 border-white/8 pb-3",
-                          index < activityItems.length - 1 && "border-b",
-                        )}
-                      >
-                        <div className="flex min-w-0 gap-4">
-                          <div className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", item.accentClassName)}>
-                            <Icon className="text-[1rem]" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-[0.95rem] font-medium text-white">{item.title}</p>
-                            <p className="mt-1 text-[0.84rem] text-zinc-400">{item.description}</p>
-                          </div>
-                        </div>
-                        <span className="shrink-0 text-[0.84rem] text-zinc-500">{item.date}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <button type="button" className="mt-4 flex w-full items-center justify-end gap-2 text-[0.82rem] font-medium text-violet-300 transition hover:text-violet-200">
-                  모든 활동 내역 보기
-                  <FiChevronRight />
-                </button>
-              </div>
-
-              <div className="surface-panel">
-                <SectionHeader title="설정 메뉴" />
-                <div className="mt-5">
-                  {settingItems.map((item, index) => {
-                    const Icon = item.icon;
-
-                    return (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => handleSettingAction(item.action)}
-                        className={cx(
-                          "flex w-full items-center justify-between gap-4 border-white/8 py-3 text-left transition hover:text-violet-200",
-                          index < settingItems.length - 1 && "border-b",
-                        )}
-                      >
-                        <span className="flex items-center gap-4">
-                          <Icon className="text-[1.1rem] text-violet-300" />
-                          <span className="text-[0.95rem] text-zinc-100">{item.label}</span>
-                        </span>
-                        <FiChevronRight className="text-zinc-500" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleUpload}
-              className="hidden"
-              disabled={uploadPhotoMutation.isPending}
-            />
-          </main>
+    <MainLayout
+      active="profile"
+      title="내 정보"
+      copy="회원님의 정보를 확인하고 관리하세요."
+      headerActions={
+        <Link
+          href="/settings"
+          aria-label="설정"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
+        >
+          <FiSettings className="text-[1.2rem]" />
+        </Link>
+      }
+    >
+      {(error || successMessage) && (
+        <div className="pt-4">
+          {error && <div className="alert-error">{error}</div>}
+          {!error && successMessage && <div className="alert-success">{successMessage}</div>}
         </div>
-      </div>
+      )}
 
-      <div className="xl:hidden">
-        <header className="flex items-start justify-between px-5 pb-4 pt-6">
-          <div>
-            <h1 className="text-[2.4rem] font-semibold leading-none tracking-[-0.05em] text-white">내 정보</h1>
-            <p className="mt-3 text-[1rem] text-zinc-300">회원님의 정보를 확인하고 관리하세요.</p>
-          </div>
-          <div className="flex items-center gap-6 pt-1">
-            <div className="relative">
-              <FiBell className="text-[1.85rem] text-white" />
-              <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#7b5cf6] px-1 text-[0.75rem] font-semibold text-white">
-                3
-              </span>
+      <div className="mt-5 flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
+        <section className="surface-panel order-1 overflow-hidden p-0 xl:order-none">
+          <div className="relative overflow-hidden px-5 py-6 md:px-6">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(124,92,255,0.22),transparent_45%)]" />
+            <div className="relative flex items-center gap-5 md:gap-6">
+              <button
+                type="button"
+                onClick={() => setPhotoManagerOpen(true)}
+                aria-label="사진 변경"
+                className="group relative shrink-0 rounded-full shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+              >
+                <ProfileAvatar name={displayName} photo={displayPhoto} sizeClassName="h-24 w-24 md:h-28 md:w-28" />
+                <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-black/55 text-[0.75rem] font-medium text-white opacity-0 transition group-hover:opacity-100">
+                  <FiCamera className="text-[1.1rem]" />
+                  사진 변경
+                </span>
+                <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#0d1124] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white">
+                  <FiCamera className="text-[0.85rem]" />
+                </span>
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-[1.7rem] font-semibold leading-none tracking-[-0.04em] text-white md:text-[2rem]">
+                    {displayName}
+                  </h2>
+                </div>
+                <div className="mt-3 flex gap-2.5">
+                  <span className="mt-0.5 w-[3px] shrink-0 self-stretch rounded-full bg-[linear-gradient(180deg,#8b6cff,rgba(139,108,255,0.1))]" />
+                  {editing ? (
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <input
+                        className="w-full max-w-[22rem] border-0 border-b border-dashed border-violet-400/50 bg-transparent px-0 py-0 text-[0.95rem] leading-6 text-zinc-100 placeholder:text-zinc-500 focus:border-violet-300 focus:outline-none"
+                        value={editedProfile.introduction}
+                        maxLength={MAX_INTRO_LENGTH}
+                        placeholder="상태 메시지를 입력하세요"
+                        onChange={(event) =>
+                          setEditedProfile((prev) => ({
+                            ...prev,
+                            introduction: event.target.value.slice(0, MAX_INTRO_LENGTH),
+                          }))
+                        }
+                      />
+                      <span className="shrink-0 text-[0.75rem] text-zinc-500">
+                        {editedProfile.introduction.length}/{MAX_INTRO_LENGTH}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className={cx("break-keep text-[0.95rem] leading-6", introduction ? "text-zinc-200" : "text-zinc-500")}>
+                      {introduction || "상태 메시지가 없어요"}
+                    </p>
+                  )}
+                </div>
+              </div>
+
             </div>
-            <FiMenu className="text-[2rem] text-white" />
           </div>
-        </header>
 
-        <main className="space-y-4 px-4 pb-32">
-          {(error || successMessage) && (
-            <>
-              {error && <div className="alert-error">{error}</div>}
-              {!error && successMessage && <div className="alert-success">{successMessage}</div>}
-            </>
-          )}
-
-          <section className="surface-panel overflow-hidden px-0 py-0">
-            <div className="px-5 pb-5 pt-6">
-              <div className="flex gap-4">
-                <div className="relative shrink-0">
-                  <ProfileAvatar name={displayName} photo={displayPhoto} sizeClassName="h-28 w-28" />
+          {/* 프로필 정보: 수정 중에도 줄 높이·배치는 그대로, 값 글자만 밑줄 입력 칸으로 바뀐다 */}
+          <div className="border-t border-white/8 px-5 py-5 md:px-6">
+            <div className="flex h-8 items-center justify-between gap-3">
+              <h2 className="text-[1.15rem] font-semibold text-white md:text-[1.3rem]">프로필 정보</h2>
+              {editing ? (
+                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[rgba(16,20,40,0.92)] text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)]"
-                    aria-label="프로필 사진 업로드"
+                    onClick={handleCancelEditing}
+                    className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition border border-white/12 text-zinc-200 hover:bg-white/6"
                   >
-                    <FiCamera className="text-lg" />
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSave()}
+                    disabled={updateProfileMutation.isPending}
+                    className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white hover:brightness-110 disabled:opacity-60"
+                  >
+                    {updateProfileMutation.isPending ? "저장 중..." : "저장"}
                   </button>
                 </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-[2rem] font-semibold leading-none tracking-[-0.04em] text-white">{displayName}</h2>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,rgba(105,73,255,0.36),rgba(82,56,184,0.32))] px-3 py-1.5 text-[0.88rem] font-medium text-violet-100">
-                      <FiStar className="text-sm" />
-                      Premium
-                    </span>
-                  </div>
-                  <p className="mt-4 text-[1rem] text-zinc-200">
-                    {displayAge}세 · {displayLocation}
-                    <FiMapPin className="ml-2 inline text-zinc-400" />
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="badge-accent border-0 bg-[rgba(98,64,255,0.18)] text-violet-100">본인 인증</span>
-                    <span className="badge-accent border-0 bg-[rgba(31,163,92,0.18)] text-emerald-200">휴대폰 인증</span>
-                    <span className="badge-accent border-0 bg-[rgba(44,119,226,0.18)] text-sky-100">이메일 인증</span>
-                  </div>
-                  <p className="mt-5 text-[1.05rem] leading-8 text-zinc-200">
-                    진실한 만남을 찾고 있어요.
-                    <br />
-                    좋은 인연을 만나고 싶습니다.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-white/8 pt-6">
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="sm:border-r sm:border-white/8 sm:pr-6">
-                    <p className="text-[1rem] text-zinc-300">신뢰 점수</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#5f4dff,#4837cf)] text-white">
-                        <FiShield className="text-[1.45rem]" />
-                      </div>
-                      <p className="text-[2.8rem] font-semibold leading-none tracking-[-0.05em] text-white">
-                        {trustScore}
-                        <span className="ml-1 text-[1.4rem]">점</span>
-                      </p>
-                    </div>
-                    <div className="mt-4 inline-flex rounded-full bg-[rgba(110,92,255,0.16)] px-4 py-2 text-sm font-medium text-violet-200">
-                      상위 15%
-                    </div>
-                    <p className="mt-4 text-[1rem] text-zinc-200">다음 등급까지 8점 남았어요!</p>
-                    <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/8">
-                      <div
-                        className="h-full rounded-full bg-[linear-gradient(90deg,#7d55ff,#8156f4,#5940d8)]"
-                        style={{ width: `${trustScoreRatio}%` }}
-                      />
-                    </div>
-                    <p className="mt-3 text-right text-[0.95rem] text-zinc-400">{trustScore} / 100</p>
-                  </div>
-
-                  <div className="sm:pl-2">
-                    <p className="text-[1rem] text-zinc-300">신뢰 포인트</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#6e5dff,#4b34d8)] text-white">
-                        <PiDiamondLight className="text-[1.55rem]" />
-                      </div>
-                      <p className="text-[2.8rem] font-semibold leading-none tracking-[-0.05em] text-white">
-                        {trustPoints.toLocaleString()}P
-                      </p>
-                    </div>
-                    <p className="mt-12 text-[1rem] text-zinc-200">다음 등급까지 760P</p>
-                    <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/8">
-                      <div
-                        className="h-full rounded-full bg-[linear-gradient(90deg,#7d55ff,#8156f4,#5940d8)]"
-                        style={{ width: `${pointRatio}%` }}
-                      />
-                    </div>
-                    <p className="mt-3 text-right text-[0.95rem] text-zinc-400">
-                      {trustPoints.toLocaleString()} / 2,000P
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-2 gap-3">
-            {statCards.map((stat) => {
-              const Icon = stat.icon;
-
-              return (
-                <div key={stat.label} className="surface-panel-soft px-4 py-5 text-center">
-                  <Icon className={cx("mx-auto text-[1.55rem]", stat.accentClassName)} />
-                  <p className="mt-3 text-[0.95rem] text-zinc-300">{stat.label}</p>
-                  <p className="mt-3 text-[1.95rem] font-semibold leading-none tracking-[-0.04em] text-white">
-                    {stat.value}
-                  </p>
-                </div>
-              );
-            })}
-          </section>
-
-          <section className="surface-panel">
-            <SectionHeader
-              title="프로필 정보"
-              actionLabel={editing ? "저장하기" : "수정하기"}
-              onAction={editing ? () => void handleSave() : handleStartEditing}
-            />
-            {editing && (
-              <div className="mt-5 grid gap-4">
-                <label className="label-text">
-                  이름
-                  <input
-                    className="input-field"
-                    value={editedProfile.name}
-                    onChange={(event) =>
-                      setEditedProfile((prev) => ({ ...prev, name: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="label-text">
-                  나이
-                  <input
-                    className="input-field"
-                    value={editedProfile.age}
-                    onChange={(event) =>
-                      setEditedProfile((prev) => ({ ...prev, age: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="label-text">
-                  지역
-                  <input
-                    className="input-field"
-                    value={editedProfile.location}
-                    onChange={(event) =>
-                      setEditedProfile((prev) => ({ ...prev, location: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="label-text">
-                  키
-                  <input
-                    className="input-field"
-                    value={editedProfile.height}
-                    onChange={(event) =>
-                      setEditedProfile((prev) => ({ ...prev, height: event.target.value }))
-                    }
-                  />
-                </label>
-                <button type="button" onClick={handleCancelEditing} className="btn-secondary">
-                  취소
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartEditing}
+                  className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white hover:brightness-110"
+                >
+                  수정
                 </button>
-              </div>
-            )}
-            <div className="mt-6 space-y-5">
+              )}
+            </div>
+            <div className="mt-3 space-y-3">
               {profileRows.map((row, index) => {
                 const Icon = row.icon;
+                const editKey = row.editKey;
 
                 return (
                   <div
                     key={row.label}
-                    className={cx("border-white/8 pb-5", index < profileRows.length - 1 && "border-b")}
+                    className={cx(
+                      "grid items-center gap-1.5 border-white/8 pb-3 md:grid-cols-[132px_minmax(0,1fr)] md:gap-2",
+                      index < profileRows.length - 1 && "border-b",
+                    )}
                   >
-                    <div className="grid gap-3 grid-cols-[28px_minmax(0,1fr)]">
-                      <Icon className="mt-1 text-[1.35rem] text-violet-400" />
-                      <div>
-                        <p className="text-[1rem] text-zinc-300">{row.label}</p>
-                        <p className="mt-2 text-[1.08rem] leading-8 text-zinc-100">
-                          {row.label === "거주지" && editing ? editedProfile.location || row.value : row.value}
-                        </p>
-                        {row.label === "자기소개" && (
-                          <p className="mt-2 text-[0.95rem] text-zinc-400">
-                            키 {editing ? editedProfile.height || displayHeight : displayHeight}
-                          </p>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-3 text-zinc-300">
+                      <Icon className="text-[1.15rem] text-violet-400" />
+                      <span className="text-[0.92rem]">{row.label}</span>
                     </div>
+                    {editing && editKey ? (
+                      <div className="flex h-6 items-center gap-1.5">
+                        {row.options ? (
+                          <select
+                            className="w-36 appearance-none bg-transparent border-0 border-b border-dashed border-violet-400/50 px-0 py-0 text-[0.95rem] leading-6 text-zinc-100 focus:border-violet-300 focus:outline-none [&>option]:bg-[#141833]"
+                            value={editedProfile[editKey]}
+                            onChange={(event) =>
+                              setEditedProfile((prev) => ({ ...prev, [editKey]: event.target.value }))
+                            }
+                          >
+                            <option value="">선택 안 함</option>
+                            {row.options.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className={cx(row.suffix ? "w-16" : "w-40", "bg-transparent border-0 border-b border-dashed border-violet-400/50 px-0 py-0 text-[0.95rem] leading-6 text-zinc-100 focus:border-violet-300 focus:outline-none")}
+                            value={editedProfile[editKey]}
+                            inputMode={row.suffix ? "numeric" : undefined}
+                            onChange={(event) =>
+                              setEditedProfile((prev) => ({ ...prev, [editKey]: event.target.value }))
+                            }
+                          />
+                        )}
+                        {row.suffix && <span className="text-[0.95rem] text-zinc-400">{row.suffix}</span>}
+                        {row.options && <FiChevronDown className="-ml-5 pointer-events-none text-zinc-400" />}
+                      </div>
+                    ) : (
+                      <p className="break-keep text-[0.95rem] leading-6 text-zinc-100">{row.value}</p>
+                    )}
                   </div>
                 );
               })}
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="grid gap-4 md:grid-cols-2">
-            <div className="surface-panel">
-              <SectionHeader title="신뢰 시스템" actionLabel="더보기" onAction={() => setActionError("이 메뉴는 아직 준비 중입니다.")} />
-              <div className="mt-6 space-y-4">
-                {trustChecks.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(109,89,255,0.16)] text-violet-300">
-                        <FiShield className="text-[1rem]" />
-                      </div>
-                      <span className="text-[1rem] text-zinc-100">{item.label}</span>
-                    </div>
-                    <span className={cx("text-[0.98rem] font-medium", item.valueClassName)}>{item.value}</span>
-                  </div>
-                ))}
-              </div>
+        {/* 신뢰: 등급은 신뢰 점수 순위(상위 %)에서 자동으로 정해진다 */}
+        <section className="surface-panel order-2 overflow-hidden xl:order-none">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[1.15rem] font-semibold text-white md:text-[1.3rem]">신뢰 등급</h2>
+            <button
+              type="button"
+              onClick={openRecovery}
+              className="flex h-8 items-center gap-1.5 rounded-[10px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-3.5 text-[0.8rem] font-medium text-white transition hover:brightness-110"
+            >
+              <FiRefreshCw className="text-[0.85rem]" />
+              신뢰 회복
+            </button>
+          </div>
 
-              <div className="mt-6 border-t border-white/8 pt-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[1rem] font-medium text-white">신뢰 배지</p>
-                  <button type="button" className="flex items-center gap-1 text-sm font-medium text-violet-300">
-                    더보기
-                    <FiChevronRight />
-                  </button>
-                </div>
-                <div className="mt-4 flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5e4eff,#302788)] text-white">
-                    <FiShield className="text-[1.35rem]" />
-                  </div>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#6b4d13,#3c2808)] text-amber-300">
-                    <FiStar className="text-[1.35rem]" />
-                  </div>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f4d8f,#0a2544)] text-sky-300">
-                    <PiDiamondLight className="text-[1.35rem]" />
-                  </div>
-                </div>
+          <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
+            <div className="flex shrink-0 items-center gap-4">
+              <TrustGradeEmblem topPercent={trustTopPercent} />
+              <div className="min-w-0">
+                <p className={cx("text-[1.45rem] font-bold leading-tight tracking-[-0.04em]", trustGrade.className)}>
+                  {trustGrade.name}
+                </p>
+                <p className="mt-1 text-[0.82rem] text-zinc-400">
+                  상위 {trustTopPercent}% · 신뢰 점수 <span className="font-semibold text-white">{trustScore}점</span>
+                </p>
               </div>
             </div>
 
-            <div className="surface-panel">
-              <SectionHeader title="나의 최근 활동" actionLabel="더보기" onAction={() => setActionError("이 메뉴는 아직 준비 중입니다.")} />
-              <div className="mt-6 space-y-5">
-                {activityItems.map((item, index) => {
-                  const Icon = item.icon;
+            {/* 등급 구간을 칸으로 나누고(블랙은 상위 5%라 가장 좁다), 현재 순위 위치에 점을 찍는다 */}
+            <div className="min-w-0 flex-1">
+              <div className="relative h-2.5 rounded-full bg-white/8">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(90deg,#7d55ff,#8156f4,#5940d8)]"
+                  style={{ width: `${trustPosition}%` }}
+                />
+                {TRUST_GRADES.slice(1).map((grade, index) => (
+                  <span
+                    key={grade.name}
+                    className="absolute top-1/2 h-4 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/25"
+                    style={{
+                      left: `${TRUST_GRADES.slice(0, index + 1).reduce((sum, item) => sum + item.barWidth, 0)}%`,
+                    }}
+                  />
+                ))}
+                <span
+                  className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_8px_rgba(139,108,255,0.8)]"
+                  style={{ left: `${trustPosition}%` }}
+                />
+              </div>
+              <div className="mt-2.5 flex text-[0.72rem]">
+                {TRUST_GRADES.map((grade, index) => {
+                  const current = grade.name === trustGrade.name;
+                  const isLast = index === TRUST_GRADES.length - 1;
 
                   return (
-                    <div
-                      key={item.title}
-                      className={cx("border-white/8 pb-5", index < activityItems.length - 1 && "border-b")}
+                    <span
+                      key={grade.name}
+                      className={cx(
+                        "whitespace-nowrap",
+                        // 등급 이름은 각 구간 시작 눈금에 맞춘다. 블랙 칸은 5%로 좁아서 칸 오른쪽 끝에 맞춘다.
+                        isLast ? "flex justify-end" : "truncate pl-1.5 text-left",
+                        current ? cx("font-semibold", grade.className) : "text-zinc-500",
+                      )}
+                      style={{ width: `${grade.barWidth}%` }}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className={cx("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", item.accentClassName)}>
-                          <Icon className="text-[1.2rem]" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="text-[1.05rem] font-medium leading-7 text-white">{item.title}</p>
-                            <span className="shrink-0 text-[0.95rem] text-zinc-500">{item.date}</span>
-                          </div>
-                          <p className="mt-1 text-[0.95rem] text-zinc-400">{item.description}</p>
-                        </div>
-                      </div>
-                    </div>
+                      {grade.name === "다이아몬드" ? (
+                        <>
+                          <span className="sm:hidden">다이아</span>
+                          <span className="hidden sm:inline">다이아몬드</span>
+                        </>
+                      ) : (
+                        grade.name
+                      )}
+                    </span>
                   );
                 })}
               </div>
             </div>
+          </div>
+        </section>
+        </div>
+
+        <div className="contents xl:sticky xl:top-5 xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
+          <section className="surface-panel order-3 xl:order-none">
+            <div>
+              <p className="text-[0.95rem] text-zinc-300">신뢰 포인트</p>
+              <div className="mt-2.5 flex items-center gap-3">
+                <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-[16px] bg-[radial-gradient(circle_at_50%_30%,rgba(196,181,253,0.35),transparent_60%),linear-gradient(150deg,#241c46,#120d2a_60%,#0a0718)] shadow-[0_0_0_1px_rgba(196,181,253,0.25),0_12px_28px_rgba(109,77,255,0.35)]">
+                  <TrustCrystalIcon className="relative h-9 w-auto drop-shadow-[0_0_8px_rgba(167,139,250,0.75)]" />
+                </div>
+                <p className="text-[1.8rem] font-semibold leading-none tracking-[-0.05em] text-white">
+                  {trustPoints.toLocaleString()}
+                </p>
+              </div>
+              <Link
+                href="/points"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[12px] bg-[rgba(109,89,255,0.16)] px-4 py-2 text-[0.85rem] font-medium text-white transition hover:bg-[rgba(109,89,255,0.26)]"
+              >
+                내역 확인
+                <FiChevronRight />
+              </Link>
+            </div>
           </section>
 
-          <section className="surface-panel">
-            <SectionHeader title="설정 메뉴" />
-            <div className="mt-6 grid gap-2 md:grid-cols-2">
-              {settingItems.map((item) => {
-                const Icon = item.icon;
+          <section className="surface-panel order-4 xl:order-none">
+            <SectionHeader title="활동 통계" />
+            <div className="mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-2">
+              {!statCards &&
+                Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-[92px] rounded-[16px]" />)}
+              {statCards?.map((stat) => {
+                const Icon = stat.icon;
 
                 return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => handleSettingAction(item.action)}
-                    className="flex items-center justify-between rounded-[18px] border border-white/8 bg-white/[0.02] px-4 py-4 text-left transition hover:bg-white/[0.05]"
+                  <Link
+                    key={stat.label}
+                    href={stat.href ?? "/activity"}
+                    className="surface-panel-soft block px-2 py-3 text-center transition hover:bg-white/6"
                   >
-                    <span className="flex items-center gap-3">
-                      <Icon className="text-[1.3rem] text-violet-300" />
-                      <span className="text-[1rem] text-zinc-100">{item.label}</span>
-                    </span>
-                    <FiChevronRight className="text-zinc-500" />
+                    <Icon className={cx("mx-auto text-[1.2rem]", stat.accentClassName)} />
+                    <p className="mt-1.5 text-[0.8rem] text-zinc-300">{stat.label}</p>
+                    <p className="mt-1.5 text-[1.2rem] font-semibold leading-none tracking-[-0.04em] text-white">
+                      {stat.value}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <Link
+                href="/reviews"
+                className="flex items-center justify-center gap-1.5 rounded-[12px] bg-[rgba(109,89,255,0.16)] px-4 py-2.5 text-[0.85rem] font-medium text-white transition hover:bg-[rgba(109,89,255,0.26)]"
+              >
+                나의 후기
+                <FiChevronRight />
+              </Link>
+              <Link
+                href="/activity"
+                className="flex items-center justify-center gap-1.5 rounded-[12px] bg-white/6 px-4 py-2.5 text-[0.85rem] font-medium text-white transition hover:bg-white/10"
+              >
+                내 활동
+                <FiChevronRight />
+              </Link>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {recoveryOpen && (
+        <div className="modal-overlay" onClick={() => !recoverTrustMutation.isPending && setRecoveryOpen(false)}>
+          <div className="modal-card max-w-md" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-[1.2rem] font-semibold text-white">신뢰 회복</h3>
+              <button
+                type="button"
+                onClick={() => setRecoveryOpen(false)}
+                disabled={recoverTrustMutation.isPending}
+                aria-label="닫기"
+                className="text-zinc-300 hover:text-white"
+              >
+                <FiX className="text-[1.3rem]" />
+              </button>
+            </div>
+            <p className="mt-1.5 break-keep text-[0.84rem] text-zinc-400">
+              신뢰 포인트로 신뢰 점수를 회복할 수 있어요. 1점에 신뢰 포인트 {TRUST_RECOVERY_COST_PER_SCORE}개가 사용돼요.
+            </p>
+
+            {maxRecoverable === 0 ? (
+              <p className="mt-6 rounded-[14px] bg-white/4 px-4 py-5 text-center text-[0.9rem] text-zinc-200">
+                이미 최고 점수(100점)예요.
+              </p>
+            ) : (
+              <>
+                <div className="mt-5 flex items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => changeRecoveryScore(recoveryScore - 1)}
+                    disabled={recoveryScore <= 1}
+                    aria-label="1점 줄이기"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/8 disabled:opacity-30"
+                  >
+                    <FiMinus />
+                  </button>
+                  <p className="w-28 text-center text-[2.2rem] font-semibold leading-none tracking-[-0.05em] text-white">
+                    +{recoveryScore}
+                    <span className="ml-1 text-[1rem]">점</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => changeRecoveryScore(recoveryScore + 1)}
+                    disabled={recoveryScore >= maxRecoverable}
+                    aria-label="1점 늘리기"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white/8 disabled:opacity-30"
+                  >
+                    <FiPlus />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {[1, 5, 10].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => changeRecoveryScore(value)}
+                      disabled={value > maxRecoverable}
+                      className={cx(
+                        "rounded-[10px] border py-2 text-[0.82rem] font-medium transition disabled:opacity-30",
+                        recoveryScore === value
+                          ? "border-violet-400/60 bg-violet-500/20 text-white"
+                          : "border-white/8 bg-white/3 text-zinc-300 hover:border-white/20",
+                      )}
+                    >
+                      +{value}점
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => changeRecoveryScore(maxRecoverable)}
+                    className={cx(
+                      "rounded-[10px] border py-2 text-[0.82rem] font-medium transition",
+                      recoveryScore === maxRecoverable
+                        ? "border-violet-400/60 bg-violet-500/20 text-white"
+                        : "border-white/8 bg-white/3 text-zinc-300 hover:border-white/20",
+                    )}
+                  >
+                    최대
+                  </button>
+                </div>
+
+                <dl className="mt-5 space-y-2 rounded-[14px] bg-white/4 px-4 py-3.5 text-[0.88rem]">
+                  <div className="flex justify-between text-zinc-300">
+                    <dt>신뢰 점수</dt>
+                    <dd>
+                      {trustScore}점 <span className="text-zinc-500">→</span>{" "}
+                      <span className="font-semibold text-white">{trustScore + recoveryScore}점</span>
+                    </dd>
+                  </div>
+                  <div className="flex justify-between text-zinc-300">
+                    <dt>사용 포인트</dt>
+                    <dd className="font-semibold text-violet-200">{recoveryCost.toLocaleString()}</dd>
+                  </div>
+                  <div className="flex justify-between text-zinc-300">
+                    <dt>남는 포인트</dt>
+                    <dd className={trustPoints - recoveryCost < 0 ? "text-rose-300" : "text-white"}>
+                      {(trustPoints - recoveryCost).toLocaleString()}
+                    </dd>
+                  </div>
+                </dl>
+
+                {recoveryScore > recoveryLimit && (
+                  <p className="mt-3 flex items-center justify-between gap-3 text-[0.82rem] text-rose-300">
+                    신뢰 포인트가 부족해요.
+                    <Link href="/points" className="font-medium text-violet-300 hover:text-violet-200">
+                      충전하기
+                    </Link>
+                  </p>
+                )}
+                {recoveryError && <div className="alert-error mt-3">{recoveryError}</div>}
+
+                <button
+                  type="button"
+                  onClick={() => void handleRecoverTrust()}
+                  disabled={recoverTrustMutation.isPending || recoveryScore > recoveryLimit}
+                  className="btn-primary mt-5 w-full py-3"
+                >
+                  {recoverTrustMutation.isPending
+                    ? "회복하는 중..."
+                    : `신뢰 포인트 ${recoveryCost.toLocaleString()}개로 ${recoveryScore}점 회복하기`}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {photoManagerOpen && (
+        <div className="modal-overlay" onClick={() => !photoBusy && setPhotoManagerOpen(false)}>
+          <div className="modal-card max-w-lg" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-[1.2rem] font-semibold text-white">사진 변경</h3>
+              <button
+                type="button"
+                onClick={() => setPhotoManagerOpen(false)}
+                disabled={photoBusy}
+                aria-label="닫기"
+                className="text-zinc-300 hover:text-white"
+              >
+                <FiX className="text-[1.3rem]" />
+              </button>
+            </div>
+            <p className="mt-1.5 text-[0.84rem] text-zinc-400">
+              최대 {MAX_PHOTOS}장까지 등록할 수 있어요. 첫 번째 사진이 대표 사진으로 보여요.
+            </p>
+
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {Array.from({ length: MAX_PHOTOS }, (_, index) => {
+                const photo = photos[index];
+
+                return photo ? (
+                  <div key={index} className="flex flex-col gap-2">
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-[16px] border border-white/10">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photo} alt={`프로필 사진 ${index + 1}`} className="h-full w-full object-cover" />
+                      {index === 0 && (
+                        <span className="absolute left-2 top-2 rounded-full bg-violet-500/90 px-2 py-0.5 text-[0.68rem] font-semibold text-white">
+                          대표
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openPhotoPicker(index)}
+                        disabled={photoBusy}
+                        className="rounded-[10px] border border-white/10 py-1.5 text-[0.78rem] font-medium text-white transition hover:bg-white/8 disabled:opacity-50"
+                      >
+                        변경
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handlePhotoDelete(index)}
+                        disabled={photoBusy}
+                        className="rounded-[10px] border border-rose-400/20 py-1.5 text-[0.78rem] font-medium text-rose-200 transition hover:bg-rose-500/10 disabled:opacity-50"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => openPhotoPicker("add")}
+                    disabled={photoBusy || index !== photos.length}
+                    className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed border-white/15 bg-white/3 text-zinc-400 transition hover:text-zinc-200 disabled:opacity-40"
+                  >
+                    <FiPlus className="text-[1.4rem]" />
+                    <span className="text-[0.8rem]">사진 추가</span>
                   </button>
                 );
               })}
             </div>
-          </section>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleUpload}
-            className="hidden"
-            disabled={uploadPhotoMutation.isPending}
-          />
-        </main>
-
-        <nav className="fixed bottom-0 left-0 right-0 z-[90] border-t border-white/8 bg-[linear-gradient(180deg,rgba(9,13,29,0.98),rgba(7,10,22,1))] px-3 py-1.5 backdrop-blur-xl">
-          <div className="grid grid-cols-5 gap-2">
-            {mobileTabs.map((tab) => {
-              const Icon = tab.icon;
-
-              return (
-                <Link key={tab.label} href={tab.href} className="block">
-                  <div
-                    className={cx(
-                      "relative flex flex-col items-center justify-center gap-1 rounded-[16px] py-1 font-medium",
-                      tab.active ? "text-[#8a5dff]" : "text-zinc-400",
-                    )}
-                  >
-                    <Icon className={cx("text-[1.2rem]", tab.active && "fill-current")} />
-                    <span className="text-[0.84rem]">{tab.label}</span>
-                    {tab.badge && (
-                      <span className="absolute right-[22%] top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3b46] px-1 text-[0.68rem] font-semibold text-white">
-                        {tab.badge}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+            {photoBusy && <p className="mt-4 text-center text-[0.84rem] text-violet-200">사진을 저장하는 중입니다...</p>}
           </div>
-        </nav>
-      </div>
-    </div>
-  );
-}
+        </div>
+      )}
 
-function FiBriefcasePlaceholder({ className }: { className?: string }) {
-  return <FiLock className={className} />;
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoFile} className="hidden" />
+    </MainLayout>
+  );
 }
 
 function FiSmilePlaceholder({ className }: { className?: string }) {

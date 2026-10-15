@@ -7,4 +7,11 @@ export type Profile = {
   hearts?: number;
   photos?: string[];
   hasActiveMatch?: boolean;
+  gender?: string;
+  mbti?: string;
+  purpose?: string;
+  photosPrivate?: boolean;
+  onboarded?: boolean;
+  trustScore?: number;
+  introduction?: string;
 };

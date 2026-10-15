@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   FiBell,
+  FiFileText,
   FiHeart,
   FiHome,
   FiLogOut,
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/home", label: "홈", icon: FiHome },
   { href: "/matching", label: "매칭", icon: FiHeart },
   { href: "/chats", label: "채팅", icon: FiMessageCircle },
+  { href: "/notices", label: "공지사항", icon: FiFileText },
   { href: "/profile", label: "마이", icon: FiUser },
 ];
 

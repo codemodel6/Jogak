@@ -14,6 +14,13 @@ export type ProfileRow = {
   hearts?: number | null;
   photos?: string[] | null;
   has_active_match?: boolean | null;
+  gender?: string | null;
+  mbti?: string | null;
+  purpose?: string | null;
+  photos_private?: boolean | null;
+  onboarded_at?: string | null;
+  trust_score?: number | null;
+  introduction?: string | null;
 };
 
 export async function getCurrentSession() {
@@ -80,6 +87,13 @@ export function buildProfile(user: User, row?: ProfileRow | null) {
     hearts: row?.hearts ?? 0,
     photos: row?.photos ?? [],
     hasActiveMatch: row?.has_active_match ?? false,
+    gender: row?.gender ?? "",
+    mbti: row?.mbti ?? "",
+    purpose: row?.purpose ?? "",
+    photosPrivate: row?.photos_private ?? false,
+    onboarded: Boolean(row?.onboarded_at),
+    trustScore: row?.trust_score ?? 70,
+    introduction: row?.introduction ?? "",
   };
 }
 

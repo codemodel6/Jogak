@@ -1,6 +1,4 @@
 import { supabase } from "@/shared/supabase";
-import { requireUser } from "@/shared/lib/supabase/helpers";
-import { getProfile } from "@/entities/profile/api";
 
 type LocationRow = {
   chat_id: string;
@@ -9,39 +7,23 @@ type LocationRow = {
   lng: number;
 };
 
+// 위치 저장과 신뢰 포인트 차감은 DB 함수(share_location)에서 함께 처리한다.
 export async function shareLocation(payload: {
   chatId: string;
   lat: number;
   lng: number;
 }) {
-  const user = await requireUser();
-  const profileResponse = await getProfile();
-  const nextHearts = Math.max((profileResponse.profile.hearts ?? 0) - 1, 0);
+  const { data, error } = await supabase.rpc("share_location", {
+    p_chat_id: payload.chatId,
+    p_lat: payload.lat,
+    p_lng: payload.lng,
+  });
 
-  const { error: locationError } = await supabase.from("locations").upsert(
-    {
-      chat_id: payload.chatId,
-      user_id: user.id,
-      lat: payload.lat,
-      lng: payload.lng,
-    } satisfies LocationRow,
-    { onConflict: "chat_id,user_id" },
-  );
-
-  if (locationError) {
-    throw locationError;
+  if (error) {
+    throw new Error(error.message);
   }
 
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ hearts: nextHearts })
-    .eq("user_id", user.id);
-
-  if (profileError) {
-    throw profileError;
-  }
-
-  return { hearts: nextHearts };
+  return { hearts: data as number };
 }
 
 export async function getLocation(chatId: string, userId: string) {

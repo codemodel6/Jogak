@@ -43,6 +43,12 @@ export function useSignInMutation() {
   });
 }
 
+export function useGoogleSignInMutation() {
+  return useMutation({
+    mutationFn: api.signInWithGoogle,
+  });
+}
+
 export function useSignUpMutation() {
   return useMutation({
     mutationFn: api.signUpWithPassword,

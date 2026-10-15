@@ -1,44 +1,114 @@
+import type { ChatMember } from "@/entities/chat";
 import { supabase } from "@/shared/supabase";
 import { getProfileMap, getProfileRow, requireUser } from "@/shared/lib/supabase/helpers";
 
 type ChatRow = {
   id: string;
-  user1_id: string;
-  user2_id: string;
+  user1_id: string | null;
+  user2_id: string | null;
+  is_group?: boolean | null;
+  title?: string | null;
   match_requester?: string | null;
   match_status?: string | null;
   meet_success_user1?: boolean | null;
   meet_success_user2?: boolean | null;
 };
 
+type ChatMemberRow = {
+  chat_id: string;
+  user_id: string;
+  role: "owner" | "member";
+  last_read_at: string | null;
+};
+
+// 채팅방 목록은 권한(RLS)에 의해 내가 참여한 방만 내려온다.
+async function getMembers(chatIds: string[]) {
+  if (chatIds.length === 0) {
+    return [] as ChatMemberRow[];
+  }
+
+  const { data, error } = await supabase
+    .from("chat_members")
+    .select("chat_id, user_id, role, last_read_at")
+    .in("chat_id", chatIds)
+    .order("joined_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as ChatMemberRow[];
+}
+
+function buildGroupTitle(chat: ChatRow, memberNames: string[]) {
+  if (chat.title) {
+    return chat.title;
+  }
+
+  const shown = memberNames.slice(0, 3).join(", ");
+  return memberNames.length > 3 ? `${shown} 외 ${memberNames.length - 3}명` : shown || "단체 채팅";
+}
+
+// 방마다 가장 최근 메시지 1개
+async function getLastMessages(chatIds: string[]) {
+  const result = new Map<string, { message: string; timestamp: string }>();
+  if (chatIds.length === 0) {
+    return result;
+  }
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("chat_id, message, created_at")
+    .in("chat_id", chatIds)
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    throw error;
+  }
+
+  for (const row of (data ?? []) as Array<{ chat_id: string; message: string; created_at: string }>) {
+    if (!result.has(row.chat_id)) {
+      result.set(row.chat_id, { message: row.message, timestamp: row.created_at });
+    }
+  }
+
+  return result;
+}
+
 export async function getChats() {
   const user = await requireUser();
   const { data, error } = await supabase
     .from("chats")
     .select("*")
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+    .order("created_at", { ascending: false });
 
   if (error) {
     throw error;
   }
 
   const rows = (data ?? []) as ChatRow[];
-  const otherUserIds = rows.map((chat) =>
-    chat.user1_id === user.id ? chat.user2_id : chat.user1_id,
-  );
-  const profiles = await getProfileMap(otherUserIds);
+  const members = await getMembers(rows.map((chat) => chat.id));
+  const lastMessages = await getLastMessages(rows.map((chat) => chat.id));
+  const profiles = await getProfileMap([...new Set(members.map((member) => member.user_id))]);
 
   const chats = rows.map((chat) => {
-    const otherUserId = chat.user1_id === user.id ? chat.user2_id : chat.user1_id;
-    const otherProfile = profiles.get(otherUserId);
+    const others = members.filter((member) => member.chat_id === chat.id && member.user_id !== user.id);
+    const otherNames = others.map((member) => profiles.get(member.user_id)?.name ?? "익명");
+    const firstOther = others[0] ? profiles.get(others[0].user_id) : undefined;
+    const isGroup = Boolean(chat.is_group);
 
     return {
       chatId: chat.id,
       matchStatus: chat.match_status ?? "none",
+      isGroup,
+      title: isGroup ? buildGroupTitle(chat, otherNames) : (otherNames[0] ?? "익명"),
+      memberCount: others.length + 1,
       otherUser: {
-        name: otherProfile?.name ?? "익명",
-        photos: otherProfile?.photos ?? [],
+        name: otherNames[0] ?? "익명",
+        photos: firstOther?.photos ?? [],
       },
+      lastMessage: lastMessages.get(chat.id) ?? null,
     };
   });
 
@@ -58,14 +128,35 @@ export async function getChat(chatId: string) {
   }
 
   const chat = data as ChatRow;
-  const otherUserId = chat.user1_id === user.id ? chat.user2_id : chat.user1_id;
-  const otherProfile = await getProfileRow(otherUserId);
+  const memberRows = await getMembers([chat.id]);
+  const profiles = await getProfileMap(memberRows.map((member) => member.user_id));
+  const members: ChatMember[] = memberRows.map((member) => ({
+    userId: member.user_id,
+    name: profiles.get(member.user_id)?.name ?? "익명",
+    photos: profiles.get(member.user_id)?.photos ?? [],
+    role: member.role,
+    lastReadAt: member.last_read_at,
+  }));
+  const isGroup = Boolean(chat.is_group);
+  const otherUserId =
+    memberRows.find((member) => member.user_id !== user.id)?.user_id ??
+    (chat.user1_id === user.id ? chat.user2_id : chat.user1_id) ??
+    "";
+  const otherProfile = otherUserId ? await getProfileRow(otherUserId) : null;
 
   return {
     chat: {
       chatId: chat.id,
-      user1Id: chat.user1_id,
-      user2Id: chat.user2_id,
+      isGroup,
+      title: isGroup
+        ? buildGroupTitle(
+            chat,
+            members.filter((member) => member.userId !== user.id).map((member) => member.name),
+          )
+        : (otherProfile?.name ?? "익명"),
+      members,
+      user1Id: chat.user1_id ?? "",
+      user2Id: chat.user2_id ?? "",
       matchRequester: chat.match_requester ?? null,
       matchStatus: chat.match_status ?? "none",
       meetSuccessUser1: chat.meet_success_user1 ?? false,
@@ -77,13 +168,114 @@ export async function getChat(chatId: string) {
         height: otherProfile?.height ?? undefined,
         age: otherProfile?.age ?? undefined,
         location: otherProfile?.location ?? undefined,
+        gender: otherProfile?.gender ?? undefined,
+        mbti: otherProfile?.mbti ?? undefined,
+        trustScore: otherProfile?.trust_score ?? 70,
       },
     },
   };
 }
 
+// 단체 채팅에 초대할 수 있는 사람: 나와 1:1 대화를 한 적이 있는 사람
+export async function getChatPartners() {
+  const user = await requireUser();
+  const { data, error } = await supabase
+    .from("chats")
+    .select("user1_id, user2_id")
+    .eq("is_group", false);
+
+  if (error) {
+    throw error;
+  }
+
+  const ids = [
+    ...new Set(
+      ((data ?? []) as ChatRow[])
+        .map((chat) => (chat.user1_id === user.id ? chat.user2_id : chat.user1_id))
+        .filter((id): id is string => Boolean(id) && id !== user.id),
+    ),
+  ];
+  const profiles = await getProfileMap(ids);
+
+  return {
+    partners: ids.map((id) => ({
+      userId: id,
+      name: profiles.get(id)?.name ?? "익명",
+      photos: profiles.get(id)?.photos ?? [],
+    })),
+  };
+}
+
+export async function createGroupChat(payload: { title: string; memberIds: string[] }) {
+  const { data, error } = await supabase.rpc("create_group_chat", {
+    p_title: payload.title,
+    p_member_ids: payload.memberIds,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { chatId: data as string };
+}
+
+export async function inviteMembers(payload: { chatId: string; userIds: string[] }) {
+  const { error } = await supabase
+    .from("chat_members")
+    .insert(payload.userIds.map((userId) => ({ chat_id: payload.chatId, user_id: userId, role: "member" })));
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { success: true };
+}
+
+export async function leaveChat(chatId: string) {
+  const user = await requireUser();
+  const { error } = await supabase
+    .from("chat_members")
+    .delete()
+    .eq("chat_id", chatId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { success: true };
+}
+
+// 지금 보고 있는 채팅방을 "여기까지 읽음"으로 기록한다
+export async function markChatRead(chatId: string) {
+  const { error } = await supabase.rpc("mark_chat_read", { p_chat_id: chatId });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function requestChat(postUserId: string) {
   const user = await requireUser();
+
+  // 같은 상대와의 1:1 방이 이미 있으면 그 방으로 간다.
+  const { data: existing, error: existingError } = await supabase
+    .from("chats")
+    .select("id")
+    .eq("is_group", false)
+    .or(
+      `and(user1_id.eq.${user.id},user2_id.eq.${postUserId}),and(user1_id.eq.${postUserId},user2_id.eq.${user.id})`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existing && existing.length > 0) {
+    return { chatId: existing[0].id as string };
+  }
 
   const { data, error } = await supabase
     .from("chats")
@@ -102,63 +294,17 @@ export async function requestChat(postUserId: string) {
   return { chatId: data.id as string };
 }
 
-export async function requestMatch(chatId: string) {
-  const user = await requireUser();
-  const { error } = await supabase
-    .from("chats")
-    .update({ match_status: "requested", match_requester: user.id })
-    .eq("id", chatId);
+// 매칭 화면 통계: 오늘·누적 매칭 성공 건수 (전체 사용자 기준)
+export async function getMatchStats() {
+  const { data, error } = await supabase.rpc("get_match_stats");
 
   if (error) {
     throw error;
   }
 
-  return { success: true };
-}
-
-export async function acceptMatch(chatId: string) {
-  const { error } = await supabase
-    .from("chats")
-    .update({ match_status: "matched" })
-    .eq("id", chatId);
-
-  if (error) {
-    throw error;
-  }
-
-  return { success: true };
-}
-
-export async function markMeetSuccess(chatId: string) {
-  const user = await requireUser();
-  const { data, error } = await supabase
-    .from("chats")
-    .select("*")
-    .eq("id", chatId)
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  const chat = data as ChatRow;
-  const updates =
-    chat.user1_id === user.id
-      ? { meet_success_user1: true }
-      : { meet_success_user2: true };
-
-  const { error: updateError } = await supabase
-    .from("chats")
-    .update(updates)
-    .eq("id", chatId);
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  return { success: true };
-}
-
-export async function unlockAdditionalMatch() {
-  return { success: true };
+  const stats = (data ?? {}) as { today_matched?: number; total_matched?: number };
+  return {
+    todayMatched: stats.today_matched ?? 0,
+    totalMatched: stats.total_matched ?? 0,
+  };
 }

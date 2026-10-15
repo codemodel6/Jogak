@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { getPostLoginPath } from "@/features/auth/api";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
 
 export default function RootPage() {
@@ -10,10 +12,15 @@ export default function RootPage() {
   const { data: isAuthenticated, isError } = useAuthStatusQuery();
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (typeof isAuthenticated === "boolean") {
-        router.replace(isAuthenticated ? "/home" : "/login");
-      } else if (isError) {
+    const timer = window.setTimeout(async () => {
+      if (isAuthenticated === true) {
+        // 저장된 세션이 있으면 로그인 화면 없이 바로 진입
+        try {
+          router.replace(await getPostLoginPath());
+        } catch {
+          router.replace("/login");
+        }
+      } else if (isAuthenticated === false || isError) {
         router.replace("/login");
       }
     }, 1200);
@@ -24,10 +31,15 @@ export default function RootPage() {
   return (
     <div className="app-frame flex min-h-screen items-center justify-center px-6 text-white">
       <div className="surface-panel w-full max-w-2xl p-10 text-center">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8b5cf6,#4f46e5)] text-2xl font-bold shadow-[0_0_36px_rgba(139,92,246,0.32)]">
-          TM
-        </div>
-        <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">TrustMate</h1>
+        <Image
+          src="/icons/icon-512.png"
+          alt="조각"
+          width={96}
+          height={96}
+          priority
+          className="mx-auto mb-6 h-24 w-24 rounded-full object-cover shadow-[0_0_36px_rgba(139,92,246,0.32)]"
+        />
+        <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">조각</h1>
         <p className="mt-4 text-base text-zinc-300 md:text-lg">
           신뢰 기반 실시간 만남 경험으로 홈과 전반적인 화면 디자인을 새롭게 연결하고 있습니다.
         </p>
