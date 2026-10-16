@@ -481,7 +481,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                   </div>
                 </div>
               ) : (
-              <div className={cx("flex gap-2", mine ? "justify-end" : "justify-start", joinsPrev ? "mt-1" : "mt-3")}>
+              <div className={cx("flex gap-2", mine ? "justify-end" : "justify-start", joinsPrev ? "mt-1 dark:mt-2" : "mt-3 dark:mt-4")}>
                 {!mine &&
                   (joinsPrev ? (
                     <span className="w-9 shrink-0" />

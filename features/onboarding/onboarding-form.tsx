@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FiCamera, FiLock, FiUser, FiX } from "react-icons/fi";
+import { FiLock, FiPlus, FiX } from "react-icons/fi";
 
 import { useAuthStatusQuery } from "@/features/auth/hooks";
 import {
@@ -220,106 +220,36 @@ export default function OnboardingForm() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* 프로필 아이콘: 선택. 없으면 기본 아이콘 */}
-            <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="label-text">프로필 아이콘</span>
-                <span className="text-[0.75rem] text-zinc-500">선택</span>
-              </div>
-              <p className="mt-1 break-keep text-[0.78rem] leading-5 text-zinc-400">
-                채팅과 내 정보에 보이는 사진이에요. 등록하지 않아도 기본 아이콘으로 시작할 수 있어요.
-              </p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-dashed border-white/15 bg-white/4">
-                  {avatar ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={avatar.previewUrl} alt="프로필 아이콘" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => clearPhoto(setAvatar)}
-                        className="absolute right-0.5 top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
-                        aria-label="프로필 아이콘 삭제"
-                      >
-                        <FiX className="text-[0.8rem]" />
-                      </button>
-                    </>
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-[1.8rem] text-zinc-500">
-                      <FiUser />
-                    </span>
-                  )}
-                </div>
-                <label className="btn-secondary cursor-pointer px-3.5 py-2 text-[0.82rem]">
-                  {avatar ? "바꾸기" : "아이콘 고르기"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={(event) => {
-                      pickPhoto(event.target.files?.[0], setAvatar);
-                      event.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
+          {/* 사진 2칸: 같은 크기. 비어 있으면 + 로 올리고, 오른쪽 위 X 로 지운다 */}
+          <div>
+            <span className="label-text">사진</span>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <PhotoTile
+                label="프로필 아이콘"
+                hint="채팅에 보여요 · 선택"
+                photo={avatar?.previewUrl}
+                onPick={(file) => pickPhoto(file, setAvatar)}
+                onClear={() => clearPhoto(setAvatar)}
+              />
+              <PhotoTile
+                label="실물 사진"
+                hint="매칭 확정 때만 공개"
+                photo={face?.previewUrl}
+                hidden={faceHidden}
+                onPick={(file) => pickPhoto(file, setFace)}
+                onClear={() => clearPhoto(setFace)}
+              />
             </div>
-
-            {/* 실물 사진: 매칭 확정 때만 상대에게. '실물 등록 안 할래요' 가능 */}
-            <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="label-text">실물 사진</span>
-                <label className="flex cursor-pointer items-center gap-2 text-[0.78rem] text-zinc-300">
-                  실물 등록 안 할래요
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={faceHidden}
-                    onChange={(event) => setFaceHidden(event.target.checked)}
-                  />
-                  <span className="relative h-6 w-11 rounded-full bg-white/12 transition after:absolute after:top-1 after:left-1 after:h-4 after:w-4 after:rounded-full after:bg-[#fff] after:shadow-sm after:transition peer-checked:bg-violet-500 peer-checked:after:translate-x-5" />
-                </label>
-              </div>
-              <p className="mt-1 flex items-start gap-1 break-keep text-[0.78rem] leading-5 text-zinc-400">
-                <FiLock className="mt-[3px] shrink-0" />
-                {faceHidden
-                  ? "실물 사진 없이 시작해요. 매칭 확인 때 상대에게는 프로필 아이콘이 보여요."
-                  : "평소에는 아무에게도 보이지 않고, 매칭을 확정할 때만 상대에게 보여요."}
-              </p>
-              {!faceHidden && (
-                <div className="relative mt-3 aspect-[3/4] w-28 overflow-hidden rounded-2xl border border-dashed border-white/15 bg-white/4">
-                  {face ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={face.previewUrl} alt="실물 사진" className="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => clearPhoto(setFace)}
-                        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white"
-                        aria-label="실물 사진 삭제"
-                      >
-                        <FiX />
-                      </button>
-                    </>
-                  ) : (
-                    <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 text-zinc-500 transition hover:text-zinc-300">
-                      <FiCamera className="text-2xl" />
-                      <span className="text-xs">사진 추가</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={(event) => {
-                          pickPhoto(event.target.files?.[0], setFace);
-                          event.target.value = "";
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
-              )}
-            </div>
+            <label className="mt-2.5 flex cursor-pointer items-center justify-end gap-2 text-[0.8rem] text-zinc-300">
+              실물 등록 안 할래요
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={faceHidden}
+                onChange={(event) => setFaceHidden(event.target.checked)}
+              />
+              <span className="relative h-6 w-11 rounded-full bg-white/12 transition after:absolute after:top-1 after:left-1 after:h-4 after:w-4 after:rounded-full after:bg-[#fff] after:shadow-sm after:transition peer-checked:bg-violet-500 peer-checked:after:translate-x-5" />
+            </label>
           </div>
 
           {error && <div className="alert-error">{error}</div>}
@@ -332,6 +262,63 @@ export default function OnboardingForm() {
             {completeMutation.isPending ? "저장 중..." : "시작하기"}
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function PhotoTile({
+  label,
+  hint,
+  photo,
+  hidden = false,
+  onPick,
+  onClear,
+}: {
+  label: string;
+  hint: string;
+  photo?: string;
+  hidden?: boolean;
+  onPick: (file: File | undefined) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-[0.84rem] font-semibold text-white">{label}</p>
+      <p className="truncate text-[0.72rem] text-zinc-500">{hint}</p>
+      <div className="relative mt-1.5 aspect-[3/4] overflow-hidden rounded-2xl border border-dashed border-white/15 bg-white/4">
+        {hidden ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-zinc-500">
+            <FiLock className="text-[1.4rem]" />
+            <span className="text-[0.76rem]">실물 비공개</span>
+          </div>
+        ) : photo ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt={label} className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={onClear}
+              className="keep-dark absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-black/85"
+              aria-label={`${label} 삭제`}
+            >
+              <FiX className="text-[1.05rem]" />
+            </button>
+          </>
+        ) : (
+          <label className="flex h-full w-full cursor-pointer items-center justify-center text-zinc-400 transition hover:text-zinc-200">
+            <FiPlus className="text-[1.8rem]" aria-label={`${label} 추가`} />
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                onPick(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          </label>
+        )}
       </div>
     </div>
   );

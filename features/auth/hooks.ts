@@ -4,11 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as api from "@/features/auth/api";
 import { authKeys } from "@/features/auth/query-keys";
-import { chatKeys } from "@/entities/chat/query-keys";
-import { locationKeys } from "@/entities/location/query-keys";
-import { messageKeys } from "@/entities/message/query-keys";
-import { postKeys } from "@/entities/post/query-keys";
-import { profileKeys } from "@/entities/profile/query-keys";
 
 export function useAuthStatusQuery() {
   return useQuery({
@@ -25,20 +20,15 @@ export function useCurrentUserIdQuery(enabled = true) {
   });
 }
 
+// 로그인·가입으로 세션이 바뀌면 캐시를 통째로 비운다.
+// 첫 화면에서 받아 둔 '로그인 안 됨'이 남아 있으면 홈이 그걸 보고 다시 로그인 화면으로 보내기 때문이다.
 export function useSignInMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: api.signInWithPassword,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: authKeys.all }),
-        queryClient.invalidateQueries({ queryKey: profileKeys.all }),
-        queryClient.invalidateQueries({ queryKey: postKeys.all }),
-        queryClient.invalidateQueries({ queryKey: chatKeys.all }),
-        queryClient.invalidateQueries({ queryKey: messageKeys.all }),
-        queryClient.invalidateQueries({ queryKey: locationKeys.all }),
-      ]);
+    onSuccess: () => {
+      queryClient.clear();
     },
   });
 }
@@ -49,9 +39,22 @@ export function useGoogleSignInMutation() {
   });
 }
 
-export function useSignUpMutation() {
+export function useRequestSignUpCodeMutation() {
+  return useMutation({ mutationFn: api.requestSignUpCode });
+}
+
+export function useVerifySignUpCodeMutation() {
+  return useMutation({ mutationFn: api.verifySignUpCode });
+}
+
+export function useCompleteSignUpMutation() {
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: api.signUpWithPassword,
+    mutationFn: api.completeSignUp,
+    onSuccess: () => {
+      queryClient.clear();
+    },
   });
 }
 

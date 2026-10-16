@@ -71,7 +71,6 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"latest" | "accuracy">("latest");
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-  const [matchingEnabled, setMatchingEnabled] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
   const [baseNow] = useState(() => Date.now());
@@ -116,7 +115,6 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
     actionError ??
     (queryError instanceof Error ? queryError.message : queryError ? "매칭 정보를 불러오지 못했습니다." : null);
 
-  const myPosts = posts.filter((post) => post.userId === currentUserId);
   // 내 글도 목록에 함께 보여준다(내 글에는 "내 글" 표시, 대화하기 버튼 없음)
   const realPosts = posts.filter((post) => post.userId);
   // 서버 렌더와 첫 화면(hydration)은 항상 스켈레톤으로 같게 그리고, 브라우저에서 글을 불러온 뒤 목록을 그린다
@@ -199,47 +197,11 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
     }
   };
 
-  const handleMatchingActivation = () => {
-    if (!matchingEnabled || myPosts.length === 0) {
-      router.push("/create-post");
-      return;
-    }
-
-    setMatchingEnabled((current) => !current);
-  };
-
-  const activationToggle = (
-    <button
-      type="button"
-      onClick={handleMatchingActivation}
-      aria-label="매칭 활성화"
-      className="flex items-center gap-3 rounded-[16px] border border-white/7 bg-surface px-3 py-2 sm:px-4 sm:py-2.5"
-    >
-      <span className="hidden text-[0.95rem] font-medium text-white sm:inline">매칭 활성화</span>
-      <span
-        className={cx(
-          "relative flex h-7 w-11 items-center rounded-full px-1 transition",
-          matchingEnabled ? "bg-[#6f56ff]" : "bg-white/12",
-        )}
-      >
-        <span
-          className={cx(
-            "flex h-5 w-5 items-center justify-center rounded-full bg-[#fff] text-[#6f56ff] transition",
-            matchingEnabled ? "translate-x-4" : "translate-x-0",
-          )}
-        >
-          <FiHeart className="fill-current text-[0.85rem]" />
-        </span>
-      </span>
-    </button>
-  );
-
   return (
     <MainLayout
       active="matching"
       title="매칭"
       copy="당신과 잘 맞는 사람들의 만남 글을 확인하고, 대화를 요청해보세요."
-      headerActions={activationToggle}
     >
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
         <main className="flex min-w-0 flex-col gap-4">
