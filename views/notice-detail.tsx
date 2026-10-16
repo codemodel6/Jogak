@@ -22,7 +22,7 @@ const MAX_COMMENT_LENGTH = 500;
 function Avatar({ name, photo, size }: { name: string; photo?: string; size: string }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#39466b,#182033)] text-[0.8rem] font-semibold text-zinc-200 ${size}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,var(--avatar-from),var(--avatar-to))] text-[0.8rem] font-semibold text-zinc-200 ${size}`}
     >
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element

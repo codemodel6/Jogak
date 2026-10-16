@@ -1,5 +1,6 @@
 import { supabase } from "@/shared/supabase";
-import { photoBucket, requireUser } from "@/shared/lib/supabase/helpers";
+import { getProfileMap, photoBucket, requireUser } from "@/shared/lib/supabase/helpers";
+import { isBoosted } from "@/entities/post";
 import { getProfile } from "@/entities/profile/api";
 
 type PostRow = {
@@ -11,6 +12,7 @@ type PostRow = {
   created_at?: string | null;
   tags?: string[] | null;
   cover_url?: string | null;
+  boosted_until?: string | null;
 };
 
 export async function getPosts() {
@@ -23,7 +25,9 @@ export async function getPosts() {
     throw error;
   }
 
-  const posts = ((data ?? []) as PostRow[]).map((post) => ({
+  const rows = (data ?? []) as PostRow[];
+  const authors = await getProfileMap([...new Set(rows.map((post) => post.user_id))]);
+  const posts = rows.map((post) => ({
     postId: post.id,
     userId: post.user_id,
     userName: post.user_name ?? "익명",
@@ -32,7 +36,13 @@ export async function getPosts() {
     createdAt: post.created_at ?? new Date().toISOString(),
     tags: post.tags ?? [],
     coverUrl: post.cover_url ?? undefined,
+    boostedUntil: post.boosted_until ?? undefined,
+    authorHasFace: Boolean(authors.get(post.user_id)?.has_face_photo),
   }));
+
+  // 상단 노출 중인 글을 맨 앞에 (서로는 최신순 유지)
+  const now = Date.now();
+  posts.sort((a, b) => Number(isBoosted(b, now)) - Number(isBoosted(a, now)));
 
   return { posts };
 }
@@ -78,4 +88,11 @@ export async function createPost(payload: {
   }
 
   return { success: true };
+}
+
+// 내 글 상단 노출: 2P, 1시간 (노출 중이면 1시간 연장)
+export async function boostPost(postId: string) {
+  const { data, error } = await supabase.rpc("boost_post", { p_post_id: postId });
+  if (error) throw new Error(error.message);
+  return data as { boostedUntil: string };
 }

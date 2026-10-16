@@ -12,6 +12,8 @@ type MatchRow = {
   matched_at: string | null;
   requester_met: boolean;
   receiver_met: boolean;
+  requester_confirmed: boolean;
+  is_priority: boolean;
 };
 
 type PenaltyRow = {
@@ -39,6 +41,8 @@ function toMatch(row: MatchRow): Match {
     matchedAt: row.matched_at,
     requesterMet: row.requester_met,
     receiverMet: row.receiver_met,
+    requesterConfirmed: row.requester_confirmed,
+    isPriority: row.is_priority,
   };
 }
 
@@ -142,7 +146,26 @@ export async function getChatLocations(chatId: string) {
   return { locations };
 }
 
-export const requestMatch = (chatId: string) => callRpc<string>("request_match", { p_chat_id: chatId });
+// 매칭 요청: 매칭권(무료 3장 → 보너스 → 1P)을 쓴다. 진심 요청은 2P를 더 쓴다.
+export async function requestMatch(payload: { chatId: string; priority?: boolean }) {
+  const { data, error } = await supabase.rpc("request_match", {
+    p_chat_id: payload.chatId,
+    p_priority: payload.priority ?? false,
+  });
+  if (error) {
+    // P0402: 매칭권·포인트 부족 → 화면에서 충전 안내
+    throw Object.assign(new Error(error.message), { needsPoints: error.code === "P0402" });
+  }
+  return data as { matchId: string; paidBy: "free" | "bonus" | "points"; cost: number };
+}
+
+// 요청한 사람: 상대 실물을 보고 [매칭](true) / [거절](false). 거절하면 대화방이 닫힌다.
+export const decideMatchRequest = (payload: { matchId: string; proceed: boolean }) =>
+  callRpc<"confirmed" | "cancelled">("decide_match_request", { p_match_id: payload.matchId, p_proceed: payload.proceed });
+
+// 매칭 중 매치 취소: 사유는 대화방에 시스템 메시지로 남고, 내 신뢰 점수 -1, 대화방도 닫힌다
+export const withdrawMatch = (payload: { matchId: string; reason: string }) =>
+  callRpc<null>("withdraw_match", { p_match_id: payload.matchId, p_reason: payload.reason });
 
 export const respondMatch = (payload: { matchId: string; accept: boolean }) =>
   callRpc<string>("respond_match", { p_match_id: payload.matchId, p_accept: payload.accept });

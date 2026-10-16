@@ -17,7 +17,9 @@ import {
 } from "react-icons/fi";
 import { PiDiamondLight } from "react-icons/pi";
 
+import { useNotificationSettingsQuery, useSaveNotificationSettingsMutation } from "@/entities/notification/hooks";
 import { useAuthStatusQuery, useSignOutMutation } from "@/features/auth/hooks";
+import PushToggle from "@/features/notification/push-toggle";
 import MainLayout from "@/widgets/main-layout";
 
 type MenuItem = {
@@ -46,9 +48,9 @@ const menuGroups: Array<{ title: string; items: MenuItem[] }> = [
 ];
 
 const notificationOptions = [
-  { key: "match", label: "매칭 알림", description: "매칭 요청·수락 소식" },
-  { key: "chat", label: "채팅 알림", description: "새 메시지 도착" },
-  { key: "event", label: "이벤트·혜택 알림", description: "포인트 이벤트, 새 소식" },
+  { key: "match", label: "매칭 알림", description: "매칭 요청·수락, 만남 확인, 감점, 후기 소식" },
+  { key: "chat", label: "채팅 알림", description: "새 메시지, 새 대화 요청" },
+  { key: "event", label: "활동·이벤트 알림", description: "내 글의 새 댓글, 이벤트 소식" },
 ] as const;
 
 function cx(...values: Array<string | false | null | undefined>) {
@@ -59,12 +61,10 @@ export default function SettingsPage() {
   const router = useRouter();
   const { data: isAuthenticated } = useAuthStatusQuery();
   const signOutMutation = useSignOutMutation();
-  // 알림 설정은 화면만 먼저 만든 상태라 저장하지 않는다.
-  const [notifications, setNotifications] = useState<Record<string, boolean>>({
-    match: true,
-    chat: true,
-    event: false,
-  });
+  // 끄면 그 종류는 알림창으로 보내지 않는다 (알림 목록에는 그대로 남는다)
+  const settingsQuery = useNotificationSettingsQuery(isAuthenticated === true);
+  const saveSettings = useSaveNotificationSettingsMutation();
+  const notifications = settingsQuery.data;
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,8 +103,9 @@ export default function SettingsPage() {
         <section className="desktop-panel px-5 py-4">
           <h2 className="text-[0.88rem] font-medium text-zinc-400">알림</h2>
           <div className="mt-2 divide-y divide-white/7">
+            <PushToggle />
             {notificationOptions.map((option) => {
-              const enabled = notifications[option.key];
+              const enabled = notifications?.[option.key] ?? true;
 
               return (
                 <label key={option.key} className="flex cursor-pointer items-center justify-between gap-4 py-3.5">
@@ -116,11 +117,16 @@ export default function SettingsPage() {
                     type="checkbox"
                     className="peer sr-only"
                     checked={enabled}
-                    onChange={(event) =>
-                      setNotifications((prev) => ({ ...prev, [option.key]: event.target.checked }))
-                    }
+                    disabled={!notifications}
+                    onChange={(event) => {
+                      if (!notifications) return;
+                      saveSettings.mutate(
+                        { ...notifications, [option.key]: event.target.checked },
+                        { onError: () => setNotice("알림 설정을 저장하지 못했어요.") },
+                      );
+                    }}
                   />
-                  <span className="relative h-6 w-11 shrink-0 rounded-full bg-white/12 transition after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-violet-500 peer-checked:after:translate-x-5" />
+                  <span className="relative h-6 w-11 shrink-0 rounded-full bg-white/12 transition after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-[#fff] after:shadow-sm after:transition peer-checked:bg-violet-500 peer-checked:after:translate-x-5" />
                 </label>
               );
             })}
@@ -182,7 +188,7 @@ export default function SettingsPage() {
       </div>
 
       {notice && (
-        <div className="fixed left-1/2 top-4 z-[130] -translate-x-1/2 rounded-2xl border border-violet-400/20 bg-[#1b1640]/95 px-4 py-3 text-sm text-violet-100 shadow-xl">
+        <div className="fixed left-1/2 top-4 z-[130] -translate-x-1/2 rounded-2xl border border-violet-400/20 bg-surface/95 px-4 py-3 text-sm text-violet-100 shadow-xl">
           {notice}
         </div>
       )}

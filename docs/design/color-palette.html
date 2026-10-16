@@ -1,0 +1,253 @@
+<title>조각 메인컬러 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 레이아웃: 배경 시안과 메인컬러 시안을 따로 골라 조합하면, 아래 미리보기(앱 화면 축소판)에 바로 적용된다 */
+:root{
+  color-scheme:dark;
+  /* 배경 시안 토큰(기본: 트루 다크) */
+  --bg:#0b0b0d; --bg-glow:rgba(111,86,255,.10); --panel:#141417; --panel-2:#1b1b1f; --line:rgba(255,255,255,.08);
+  --fg:#f5f5f7; --muted:#a1a1aa; --dim:#71717a; --tag-fg:var(--chip); --ghost:rgba(255,255,255,.05);
+  /* 페이지 바깥(설명 영역)은 고정 */
+  --page:#0e0e11; --page-panel:#17171b; --page-line:rgba(255,255,255,.1); --page-fg:#f4f4f5; --page-muted:#a1a1aa;
+  --font:"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  /* 메인컬러 시안 토큰(기본: 현재 바이올렛) */
+  --main:#6f56ff; --g1:#7d5cff; --g2:#5c3df0; --soft:rgba(111,86,255,.18); --chip:#ddd6fe; --glow:rgba(111,86,255,.4);
+  --hero1:#2b1a6b; --hero2:#14102f; --on-main:#fff;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--page-fg);font-family:var(--font);padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:22px}
+h1{font-size:1.5rem;margin:0;text-wrap:balance}
+h2{font-size:1rem;margin:0 0 10px}
+.lead{color:var(--page-muted);margin:6px 0 0;line-height:1.6}
+.picker{display:flex;flex-wrap:wrap;gap:8px}
+.picker button{font:inherit;font-size:.86rem;cursor:pointer;border:1px solid var(--page-line);background:var(--page-panel);color:var(--page-muted);border-radius:999px;padding:8px 14px;display:flex;align-items:center;gap:8px}
+.picker button i{width:16px;height:16px;border-radius:50%;display:block;border:1px solid rgba(255,255,255,.25)}
+.picker button[aria-pressed="true"]{color:var(--page-fg);border-color:rgba(255,255,255,.5);background:#26262c}
+.picker button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.groups{display:grid;gap:12px}
+.group{display:grid;gap:8px}
+.group > span{font-size:.76rem;font-weight:600;letter-spacing:.04em;color:var(--page-muted)}
+.desc{color:var(--page-muted);font-size:.84rem;margin:8px 0 0;min-height:1.4em}
+
+/* 앱 미리보기(여기부터 배경 시안 적용) */
+.app{background:radial-gradient(circle at 0% 0%,var(--bg-glow),transparent 40%),var(--bg);color:var(--fg);border:1px solid var(--page-line);border-radius:26px;padding:18px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;transition:background .4s,color .4s}
+@media (max-width:760px){.app{grid-template-columns:1fr}}
+.col{display:grid;gap:14px;align-content:start;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:14px;display:grid;gap:12px;min-width:0;transition:background .4s}
+.title{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:1.05rem}
+.title small{font-weight:500;color:var(--muted);font-size:.8rem}
+.banner{position:relative;overflow:hidden;border-radius:18px;min-height:180px;padding:20px;display:flex;align-items:center;color:#fff;
+  background:radial-gradient(circle at 85% 30%,var(--glow),transparent 45%),linear-gradient(135deg,var(--hero1),var(--hero2) 60%,#0b0f22)}
+.banner .txt{max-width:58%;position:relative;z-index:1}
+.banner small{color:var(--chip);font-weight:600;font-size:.78rem}
+.banner h3{margin:6px 0 12px;font-size:1.25rem;line-height:1.3;text-wrap:balance}
+.banner img{position:absolute;right:18px;top:50%;transform:translateY(-50%);width:110px;height:110px;border-radius:22px;box-shadow:0 18px 40px var(--glow)}
+.pill{display:inline-flex;border-radius:999px;background:rgba(255,255,255,.14);padding:7px 14px;font-size:.8rem;font-weight:600;border:1px solid rgba(255,255,255,.2)}
+.btn{border:0;font:inherit;font-weight:600;color:var(--on-main);border-radius:12px;padding:10px 16px;background:linear-gradient(135deg,var(--g1),var(--g2));box-shadow:0 10px 22px var(--glow)}
+.btn.ghost{background:var(--ghost);box-shadow:none;border:1px solid var(--line);color:var(--fg)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tag{border-radius:999px;background:var(--soft);color:var(--tag-fg);padding:5px 11px;font-size:.82rem;font-weight:500}
+.new{border-radius:6px;background:var(--main);color:var(--on-main);font-size:.68rem;font-weight:700;padding:2px 6px}
+.post{display:flex;gap:12px;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:16px;padding:12px;min-width:0;transition:background .4s}
+.post img{width:60px;height:60px;border-radius:14px;flex-shrink:0}
+.post .meta{min-width:0;flex:1;display:grid;gap:6px}
+.post .meta p{margin:0;font-size:.93rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.post .meta small{color:var(--dim);font-size:.76rem}
+.trust{border-radius:18px;padding:16px;color:#fff;background:linear-gradient(135deg,var(--hero1),var(--hero2));display:flex;gap:12px;align-items:center}
+.trust b{font-size:1.7rem;letter-spacing:-.03em}
+.trust .ic{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g2));color:var(--on-main);display:grid;place-items:center;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stats div{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:10px 4px;display:grid;gap:4px}
+.stats small{color:var(--muted);font-size:.72rem}
+.stats b{font-size:.95rem}
+.nav{display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 4px;text-align:center;font-size:.72rem;color:var(--dim)}
+.nav span{display:grid;gap:4px;justify-items:center}
+.nav span i{width:20px;height:20px;border-radius:6px;border:2px solid currentColor;display:block}
+.nav span.on{color:var(--main);font-weight:600}
+.toggle{width:40px;height:24px;border-radius:99px;background:var(--main);position:relative}
+.toggle::after{content:"";position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.stars{color:#fbbf24;letter-spacing:2px}
+.muted{color:var(--muted);font-size:.86rem}
+.note{color:var(--page-muted);font-size:.8rem;margin:0}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>조각 메인컬러 시안</h1>
+    <p class="lead">배경과 메인컬러를 따로 골라 조합해 보세요. 아래 앱 미리보기에 바로 적용됩니다. 그라데이션과 레이아웃은 지금 그대로입니다.</p>
+  </header>
+
+  <section>
+    <h2>배경</h2>
+    <div class="picker" role="group" aria-label="배경 선택" id="bgPicker"></div>
+    <p class="desc" id="bgDesc"></p>
+  </section>
+
+  <section>
+    <h2>메인컬러</h2>
+    <div class="groups" id="accentPicker"></div>
+    <p class="desc" id="accentDesc"></p>
+  </section>
+
+  <section class="app" aria-label="앱 미리보기">
+    <div class="col">
+      <div class="banner">
+        <div class="txt">
+          <small>신뢰 기반 실시간 만남</small>
+          <h3>나와 꼭 맞는 조각을 지금 찾아보세요</h3>
+          <span class="pill">매칭 둘러보기 ›</span>
+        </div>
+        <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCACgAKADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDw6C2JtmPtXPTDFww969GOjPDpztt7V59PETesoBJ3YwK+zzOlFUIyifSZrgauGcIzVrnpHwognZp3jbCggEetdP46il+wIztlQ3T3rI+GNtPYxTebE8ZYggMpGa0viJeFNNjH+1Xi4SEpVU1sfZYWfssAoz6I8c1j/j7atDR7VpYiQOBWTqMnmXJPvXQeHrryIGDJuBr6DKoc2JkfBwnCWJk3sUNTVoMjpWHyZM+9bmu3HmyHAAHpWGn364M50rWObFSTqWjsWFHFXtMYJeRk9M1UQVYtVPnrj1ry6U+WpF+ZrQuppo1PEUqtCmOuaTSpkEBB9KrayjLGpOabpoPln6V9D9bccS2uxpiYyniNUQ3Z+dj71FbEeZzT7s8tVeDJfivmayc6uhx1fdkdPokay3QHtR4oj8ryvrUXhNXm1VY+fumr3jm2aA2+e+a5fYT9pdnvU6Ep5dKslon/AJHNRtzXpHgFN+nE/wC0a82iXNer/C3R9Q1WxeOytJZyhJbYOlKtJQV5HZwvOMMS5TdlZ/oZPjldqsPasbwkC0TYHetv4hwXNpcSwXELxSIMFWGCKo+A7RriFsDJya5alSKp8x6eOaqZiuXsen+JPC0WneH5ZlbJVeRXh+im3i8Tk3BUDJClugbtXousfEBtR0doHlyNvT1rybeJtQZz3bNfZ5jUjUw/JfcxzzEtToylJSknf5HvWlSwDT9hdDISCuDkiuc+IqB9Liwf46zvCt2UjMcIZ5GxgDkmqXj7UrmGGKCeN4yTkBhjNeNldWFCUYSZ143GQnhJSfVHnF8my4I963dGUvAeelc/cyGSUtV/T7t1xGh5PFe7luY0aOJnOWzPzizctB+sJtkPOayo/v11Vz4dkuLT7QZ8MRkLjtXLyRNDMyMOVOK8vMsfRxNdzpO6N6mFq0rOa3LsEZlYKoyTXQaf4fMksW2UFyemOKxdHdVu493TNd1pKrbXcUj42+tfP18TONaCj3R7eW4eE7Sl3Oa8TQmKIIy4ZWwRUGlwloCdpxjritfxPGLu4LgfKz5qxoibYSuMDHSvexGK5K3yOmpRVTGNrY5G9XaWqKwj8yUitTWoFSRyoxk1S0tP39ZYGrD6zGU9j5/G0WpuKOp8AWhl8SiPH/LM1rfFazNsllkdWP8AKl+GMAPi5cjP7tq2PjdbgR6bt6s5H6U8VVjLESUNmz6vC3hk0qL63f4o8qg4IzX1X+zheWKeDJYjtim+0MzMeN47V8zTaO0Nt5obJHUV7L8HblINFtIZ3MatKQ56YBavCz+lUo002tb/AOZ52FwM2pUZ6XV/xQ79oe9srnWitsFZ1gVXcDqeao/APwbP4m+0bMJHECXdugyeBXrHxk8O6BJ4FvbyWG3jlhQNBKoG4nPTPfNcr+zZqcelWF4XZfImbH0INeF9YisPyz0V1d+pvCvJ0va4daxjZX8rHjnwy8D/APCa3d3byylUt4Q+M4yScVh6d4Se88R39hblpFtXI3Dvziuv+EHiKLQLHULqT78wCj6D/wDXVjwLqljpesalPcMokuwGUse2TmvvOJ8U8PhV7FatXXf+v8jlweFVblqVHpf9Cj4b8vw7r89jeMIneJfLZ+B15FavizwxqHje1t7LRrdbyeKTczKwwgx0z71h+NtQttb8VI9ptYLEEYjuc19LfBnw1BovhS3Zo1E0w8xzjnJr46dVqFOvf32tmdeIrqnRnCSvG9j5X1X4HeMdMtmuJdMyiDJ2uCa4mCCS3ugrKQ6tgg9q/Rm+tbe4tpInVSGXHSviX4r+HF0DxxexxLiOR/NTHv1/WurAYypOv7GtZ32seNClTrR9pTVmmNsp4bm1SJ1fzNuOB1Fc3f8Ahu+vNUWGztJ7iedvkhhQux/AV6n8L/AF5rqLq1+DaaWOFkYfPOfRB6f7XT617Dp9vp+ixmHSbOK2VuGkAy7/AO83U19QsHhqNNqK1Z04maqJKT2PC/Df7OnijUEjn1Kez0ZDg7Z23y4/3V6fia9J0v8AZ50SAR/bfEeo3DL1EUKIv65Nd5bmSU5Ymta1gIx1ryKyindbowVbk+HQ4K+/Z78OalEFg1rULdx0LxI4/TFYOofs963pUTyaXPa6qgH3UPlyf98n/GvbYYSKtxlk5BIrjq1qkpc0nc0hjq0Jc6d/Vf8ADHw94o8PX2m3U0N5bywyoxDJIpUr+BrD0+3Kz8ivurxX4N0Xx5p7WerQKJwpEV0gHmRn69x7Gvlbxp8OdQ8EeIHsLtMj70Uq/dlUnhh/ninQxfLNcw/dxMuaOkluv1RW+HUotfFQY94yK0PjTeiePTgh5Vyf0qt4b0O6TxNbIuMuCMjtWj8R/B+pXuqWNrCjSGQEjA6Vu8ZT5+ZvzPfUWsBKlb3tl96PPbTVnmeKKQfKWAY16xp1nPa6NE1lEX2/McV55F4Ou7TVGtZ4iJISrEYr0m4106JojBIDIyDAA7Vji8T9caTdzfKKdVwm6/T8upe8Y3txrPhZ7EuyO6DhugxWP8HNE1KdLpIZZVhVchl6E5/pXB3Xj+61bdbJHKrl9uB1z0wK9R+B/icWWnXGh3VvKl7C7SbXGCVPOTmvn5YWeHw8oy2b/pnPKvCdTnoa2T9P63ZJ+zz4DTXfD0tzMkOwooBdcnJzXkvxP0kaP4iu7UEI8bOAE4AwxFek/CX4j2XhLw5HbJeeRME2yqxGMg8YqX4lW3hnVdEsL6ACfUbmTJZeS24EnJ+tej+/hjE617SvvtbpY550qk6Lg2uW0beWmtzxHSb0WEltcuGYBwTnvX0J4c/aC0qC3trERTiQ4QAJ3rxd9IghubbS7qNt7SrwpzgFu34VqfFfw/ZeD9Y0saWhi8yMsSOBkH+dViKVLETjCTd3e1vI5FGVKm+dJxVrr8D3bxP8cLDw0YFuxITOpKlF3D8a47TtLsfjB4gHiS7gePRLA7X3DabqTr5Y9h1J/DvXm934f8Q+ObjTUQtKZSsceV4GTjJ+nWvoBbK08NaRZ+HtOGLazjCZ7yN/Ex9ycmurI8spxtXnK8lfroOvL2TcKcLRf3lie7M7LHGqxwxgKkaDCqo6ADsKnt4C2OKpWo3GtuzTpXq4nENs8uRcsrfpkVtQRgAVRtsCtGFhXmTm2ZMtRoKk2imRkVy/xY8QX/hj4d65q2lt5d7BABFJjPllmC7vwDE1i9TN3OpI2msLx94Sh8b+HHg2A39r+9t3xycdV+hH64ryL4IfF641rX7fwzez310k9nuE95KJHF0oJfa3XYw5APQg9jXvUE3lTKa56ituaRcqclOO6PBtO8F6honiXTL++x9l3Ybb/D9a6rxLrej6J4u0me6UbJIZE8zsh4xXB/HL4ga1oHiq60aIQx28EgkQgcurKGGfzryjV/H2s+Jrm3RxGrJwqrnBNcEcFXrRtLbU+hliqckpTerWy8z6p8JaJ4c8WeItU1QJHcBY44wvbPOWrzrxl4btn8Z32h2l0EjyWGOSOnH1riPCfiPxp4S1JUt0iP2lQgTJwx7D61n+Lbrxn4Z8Vpqmo2yvd3h8wBGyG56Cpw9KpRkoQaUrOzvv5W8jpo1Z4epKpJvkaStrptr/AF3K2l+Ab7SPHrQLMkvkuJhvGN2T0Nbut6hqOjfEvTzaxpbJcL5GwnORySTXI6z4v8U2fiKO+l097W4dRtjJzu/GtGWHxZ448YaSlxZNp87EskjZIHGSf/rV21YuVOM6zV+V3f8AW/yOenXjBOlRUl7ydrPv57adzzm/MKXF8gdiRK2zHQjNdLZQ3dp4dtr03I3I42qWyV+lcvd211aSstxGVkPJDUDWbuOFYeCinIBr6avRlRny1VZpW8zwKOLhGTm+vb1Nmy1bUL7xCJ5J/wB6hUqcehrvPGOnXfieyt9XurrD26nC4yBz39680XxLP50cq28asncd67zQPjXNpOlzWM2jxXHm5w5kxyfUY5rmpYilh4uTw6nKzS1ta/U6qdSnUi4SqtXaez1PUfg5dTSYWUxulnbM4YdQScD+tdBeXXmXTNnqa4D4K+LDrN5rNsYY4T9nWRQvcb+f5iuxuW2ykn1rTL4eywyjazbbZ6tZKtHni7rY2bKUZHNdBayDArjbS42kc1vafehmCD5j6VNaDPEmtTP+LPje98DeC59T01UN7JKlvC7ruWMtnLY74AOPfFch8Kfji99qeh6Fq+oXeoXWoh47maeJEFvPu/dhGXG5WHBBGQcV6L4v8GxeOPC93o91uiSYBkmAyYpFOVb8+vsTXkPgD4CeINH8aWWoat9lhsLCcXAkimDmYqcqAOoycZzXnyktjPkbdz6ZjkrP15NI1q2n8NalPCW1K2kX7MXAkePGGZR14yOfXFcz4t0nxhqt1A/hvxZDoluIyk0T2SzMzZ++GPQ44xS+DPANp4XvZ9YvNRvNc125TZNqN62XCf3EXoi+wrGTDkZw3w3+A+p+C/Haaze31rNY2Yc27Rk75iQQNy4+XAJzya9sL/MKge5GOtRrcKW5YADkkngD1rjrVLI15G9WfOX7S9q8/j4SJG5VrODcyjvg/wBMV5/4R8Mx31550zyRLEwyTxgV13xR+J2na/4jupbVkkgWQojkdVXgH9KwNL8dWEEMlvKY1EnG70r0cOpqktD2qNLDU3Bzmm0ldedjqPFk8VlqOnyW9+xeMDADZI5HNL488Qy634g0d7mdwIl4G0eoOa43VLvQpNQt5INRBGBuO7IWrus32lPqVlJHqiOExySDtrCUIuUHba/TudtXERnKUlbddTU+KeoLLrWkSxuMqpBwmBXZaV4psLm/sYpn2XEa7kKpgg49a5rxRa6Re2tlqrazbOUwPLyp/rVCxvrH/hKbO4S8gKAYIOMVhThRq4VRa1jc2jNwqyd1aTX+Rw1lb6b4o1+OHULu7hR3WMygDjc20HFTeN/B+heFPF9z4di1W4u/ImEDXCx/KDxnjvjPrTtL8G6wLt2WOMfPGARKvZ8nFbHjv4a+I4NbGtymzkivrgzR7LlXfAP8QHINetmWJ9pW9tUq3b3163f6I+X9hOMVH2X4eZw13YwxSSQWbyXEYOEkdNhYeuMnFQpouoSDK27n6V6DpXg7UbrT7u5W2tT5DEkvcqrEEnGAeTU1h4T8Xy2ct7aaTLNbQkB5EdSq/XmprY51VFRteKS/4c3WVU/ik3r26eRnfC19V8L+KrbUJLC4NkwMF0QudsbcFvwOD+Fe6asgjfcpDKeQw6EeteL6b8UH0qCa3ktldjxyBwelXdA+L4gUWGqRST2pP7t0GXh9sdx7dqMDiarqONWNl0Z6WH+rUYezU7379D1TSbWXUpZMP5cEK75X9B2A9zXRaSiGQCMYUdK8H8UfF3UdId7Dw+8At5NskkskRLOccDB6AZ/Ok8M/tAaxp0y/2lplreRZ5MJMT/1FezjZqMeRbnhYurBVnBPY+tdMTZEKz9ZnTT7xVyAkq7wPT1rm/AHxa8M+NFSCyuzb3xHNnc4SQ/7vZvw/Ks74q+KIdN1axtfNUSCAyMu4ZwWwOPwNfLybdTlHSXva7HVrqiH+Knf2ogH3q8vs/Fnnjh/1rROo3U8DSKdqAZLnoK1qU2lqdEYxbOj8ReOtK8O24m1G+htw5wgdsFj7CvOfiF8SNR1jRpNI8NbG+1pi5vfOVVSM/wACEnknue3SvFfHeoXGqeIL2/nmkmEcojUOchUxjAHbsaxI76S1BRHby2/hB6fSsnhLtSW67k/W4RvGUdPxOkT4f387KJdV0WBmIAD3WcfkprM1jwldaR9lkkntrm2ut3l3Fs+9CynDLnAww449xWdNcuIXYuTxgc9667whd2Gq6bJ4a1HdGsr+bb3SjLQT9Acd1I4I/wAK6JVKtL35O66pLoZRjQrS5Ixs/NlrwX8KF8V38FqL/wAnzTgng4rd+InwFXwcY2t9TaaJ1yPMUA5/CuTg1bxB4J1/7O8htri2f6gjsR6gjkGrPjL4ma94jnQ3t0JAq7QAMAVzz+tTrqVOfuM7PZYSMbyjZLRrrcw4vBNxKwCTpknHSuyl+AOsRaH/AGouowH5d3l7DnH1zXAW+t3SzphiPmHevU77x1qMXhh7ZbxzGI8hc1pjqmLg4KjJa76GmCwWExEZSjH4d9XsU7XxbPFBbSjT7LexkywQjNa+o+OXk0yzCaHYRSKSTKM5asey0OSaCJdp+Qtx9a6/XPBckHhfS7kRgGTOfWvKxFWjzJSXU9CMattX6HO+E9QfXdYtLS5sLV/NnRM7T0zXoLa6+j+H/EWiwWVpGRcHDLHzwTz+QrnPhV4daTxZp5ZeFulz+Ga67xbozW+qayqqf3lwwHvwaynVj7Ty/UqinKSpT33/ABPlC5ctO59WP861bK3aGzhfckZlzIx/5abB6eg/nmox4c1S6uHENhcyDeQWVCQOa09bsLm0hEaWN0m75d7xkFlXgf5+lfZ4BwTdST2Pno0KkVKckzm72Zrm4aQ55NEC4NI0bK5DAg+hp2QBWNes5ycmeZb3tSzHPJHKjROyOpBVlOCp7EEd6k8WeJdY1rW49Rv7+W5vIreOEyt12qMAe/HWq8MixAzOMgVnuTMzTFtxc7q44K8+Y3rtKmo9TufCPxPh0Z0/tPTRdJkDfE2GH/ATwf0r1nX/ABpZ6h4ZiuNKl8yC5TO4DBUdwR2PbFfNJh5GOh5HtWxpGtX2m28tkj77efPyE/dbH3hWripO7JoYmUfdZHcXs89xciYbkmJY46r6U0oWiR8ckVueFfBWu+MLt7fRdOmu3HDuMKkY/wBpjwK9T0j9lzxLcWy/bdW0e0f+4GeUj8QMVMny6stRbXvHg9zIywEH+8tT2Fy0ZDK7KwOdw65r27WP2S/Fi27yWOqaRfFeRGjtGzfTcMfrXnc3gay0e7ksdXudS068gOJYJIVDL7g5wR7il7aFtSKVGc5+4/xNy3a08daNHZyLcSazZpi2kmZczIOTFkY9yM9+O9Yujaf4XmuLm31+S/090QhCBysnowq5Z6daaVNHPpXiWYMDysn7sfmMj8xSfEWW58QvFrLR/wClxQrDeKqAEheFmyvDKRxuHoKxwtSknKjLSLvZ7NP/AC/4bqezV9ooKo4ptb7NNfLqcPKghuWVW3KrcN6j1rTudWaSzaLceRisu4P75sdK6Oy+HniDUNKh1SK2jFpcRtJG7SjLKpwTgZI59a75yhFJzZwUJVU5worc+mfDvgkTandQsmFRY2HHqK9B1vwWj6Baw5B8jqOwzXI+FPHGlzS2u7V7MtI0isVYZIU4FemazrNlBon2iW+gSNkyH3DDcdq+Gw1KnOnUdb4ktD0MyxOJhXpqO1/+Aec+CNJttF8R26yL87THB/DipfHstobnUZFGGjm3EkZU4U5/Wsm+8X2A1VPsmqWZkW2R0GRkuWqv4r8f+ELnwrcx3uqxx3kERWRY2BMrkkmuek5yp+z87+e1j0VCSrxxEr2tZ+Wt7+h8w3Hja8S+lEVvbxKznIQEDg17H4m8WeHofhlo7SeH4k1i6JbzBKwYpsJD7vc449q+dWcTXxKnhnOM/WvX/HPhOfSPBfgu9kmMi6jCSATnbgHgfga+sr6KFNtpa/keJRxlao5OUr2en9fecf4y1CHUtC0G+i0+2tGaKSKR4slpnVvvMT1NcnG+49a6vULOS4+HWkM6KqRX06byeSSAcVzUen7T2b2WuunC1P7/AMznxcJOqpd0n+CINQuAkSxLyT1x6VXs5NrGNuh5Fatxp7BAy2zEjqMdvWlgs/KUu8calugckY/Oqg1axy1aU3Uuyic4O0E7TngVe0i0bVNVsrOP5HnmWMH0yetI4LKF+0Iuf4cEj9BV/wAPW8q63ZyQXTBo5VbcsZIHPX6VrTSckmEIXkkfU3hWTT9A0y30nTI1ht4QM4GC7d2PqTXb2Gqx7Rlq+eLfWtatpdu+Fj2+Uj8+a37LxN4jOAiW7f8AfVdOOpqT7Ha1JytY98XU49udwrw79pSysrnSrbVUCi6hbbu7lfStG11XxXOv3LdB7IT/AFrzv4yJrN1p8CX88ki7s+VGu0GvFhZVErm8sO403JI8la8weGrU0fUZbpZNMeTKzxskTFsbCR0z6H0+lZ8GkK74ICH/AKaE/wBK9I+GPw5sdf1LzLxIpbSFWZwrFSxxwM5z1oxNWnTg5SFhKdaU7rbr6HlU6slw6upDK2CD2Ne0+GfD0mq+A9LmS4eNjaTRxbcjMnmghSfTrzXMeKfDWkw63deXCgAlxhrgivavhyLfQ/Cehr5MMltdNNYxsDvIdmLByfRefwpYrG3pKUNzvw2Dlhqs3PVbb/P9DwLw5eeB2lT+0rnVLYgnlBnjt0r0/WtR+FE3hm3ji8S6y86j/VnecfhtxXnnhbwnoGsXNuh1QxO5O4NjjnivbvFHwJ0638E293b3bM6qGY7VwQa8nG+z9rvLTfyXfYuk6kIxU3FXdlbq+zPD9N1XwXYeI7a4SXVbiCJskhfmP0rL8e6vouo3Dx+HdOurKGRy0hum+dz+NdNp/wAO0Gv21tDet5khG3aBnPpV/wCI/wAK7XRbOGY3801/If3iPyVOf5V0U6lGNaHvNtozrYfEypShZJ9l/TPGEgkWTcAcA16L4g8V3us+HPCunS+ay6YjCMNwOtZ8nw6vbeKNyc5G4jHSta9s7QQ6HFKGdrXiQHv8wr33g6laKqRhdK+vyPPjluIwzaqrlvb8zc1nS7S3+E9vGmnvHPFqCFxLPlyzxkllXHTpXnaWk8k+2MNChwAZNo4+or2H43ap/a4gu7S0RLF5UVExgFkjAJx+NeWy395dEKyRogGAqKAMVjl9Co8PzS6tmuO5VUSlpotC5p/hiW/SY/a7ZkiGGLybcg+metZl5pq6VMbe41WGTa4DCEMwA/lXQeH9MuL66jVVZ2J+tdF46+H01m9ncOVVJ4wSAOS3f+lczq+zrKnJ7mksOqlHngtUcE40tELQxnUJGwSzqIVHqMDn9a1tK0edrR7w2sUAOdioT+vPOKvWHheMTjfaq0Y7N3rtreytvsIg+ylSBgFW/pW8pqGu5lSoOT10/r7/AMTmvD/idJilpqcREyfL5qDk/WvRNIutMkwPt0YA7NxXI6H4OhutdYzPJDGTkMV3fpWhqegvp90y29wrxKeoTBrkxOa88/Zvc9KhhZct5anpto+lRWMl0LoOE4+QH+deJfFbUDrV5FtnQwLnEYf5uvcV6NorQjwtLDJG6SbjypwD9a8n8bX39n3apFFbvIB9503H9a5MGpyqts7MThoww0py8jC0vTTPMiJBO5JxwvFe9/DDTytpOvkRRxKvBRMs57k818+2Osakrokd3LGu7O1G2jP4V9BfB03MltdKXC5j+8G5NXmlFuGpz4Fw+r1JR3VvzPLfFpsP+EiuhJZvIfMIDNNsAHfjnmu68EeJVt4ZtHsrXT540tJJQjylWDBgSu7kAEE84yORXG+PVkg1q4c2yTN5hAMgH9K7XwP4X06PwjDPJZRyXmrJNaqUdgVO8HDMD0OP5VnzQjSUp7W9enqbYhN1JQXV/wBdD5xsLgxSqwOMGu6l+JWvf2IumJqd0tuo4TzDgfhXnUT7T1qz9o+XGa9Svh4VWnJXsfO4bGypxcUzc0vx5q2hazb6nE6TS27h1EoyDj1rZ8UfF2/8Xaib28tY4WIwVjbI/WvPp3yc0xGp/VaXMp21RkswrRlpI93vfid4Ln8L28Vt50epKgVw6Educnoa46y1XTdT1W0Rp9kbTKGPoM815vK1RBypyCQfUV6WCxdXDUnRi7rXfpc1xGdVatlUV7HvXjrW9N1G4i0y2ffb27OysT3OK5yx0SGWYcnGa8vTULmM5WZ8+5zWvpvjDULFgQ+8Dsa6aOLpQoKjy7dTKtmEa8+eSsfRHg3SbSzZWRBu9T1ro/iFFDc6RpoO0yLK2PpgV4j4d+MCWrKt1CQB3FdDd/Eiz8R3MQFxsSMYVSe5718/iaPPXU1sj1aNenKmkmb1pZLkZTNa0FkOP3ZxWPpt2swBSQMPrXS2LSYHWsa8rLQ7KULnQ+B/D8V1qiloGYbTkVkfESxFlqE0SoUUN0xXoHgFmjnZm4BQjpXB/FrWAdZnUMpwcV4koptTXxN2+ViaNaTxkofZUf1Oa025K6XIm7jJ615t4unhOot5tuk2Vxz2rsYdQAs24HNcN4heOa9JYc4r3sLTtqz2MfNfVUl1sUNLtrFrlTPE4XPRTXvXwmOlRLMJGdBs+XJ4NeO6HozXo3RoWxXo/gySPTbhFuQQg6iufHVFJNJnLg8O3h5wta66bmV4z+x3muzR3GVtVY7GXq3NeheB49Mg0+z8neY1gcxljws27qK81+IVzaXWrH7L8q+wxk1v+ErtotKjRZmTy0OAR1YsD/SvOnH9wne2mx0Tpe1bgtNPmf/Z" alt="조각 앱 아이콘">
+      </div>
+      <div class="panel">
+        <div class="title">지금 올라온 매칭 <small>전체 보기 ›</small></div>
+        <div class="post">
+          <img src="data:image/jpeg;base64,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" alt="">
+          <div class="meta">
+            <div class="row"><span class="new">NEW</span><small>경배 · 3분 전</small></div>
+            <p>오늘 건대역 저녁 같이 드실 분~</p>
+            <div class="row"><span class="tag">#건대</span><span class="tag">#저녁</span><span class="tag">#맛집</span></div>
+          </div>
+        </div>
+        <div class="row"><button class="btn" type="button">대화하기</button><button class="btn ghost" type="button">찜</button></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="trust"><div class="ic">◆</div><div><small style="opacity:.8">내 신뢰 포인트</small><br><b>23</b></div></div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><span>매칭 활성화</span><span class="toggle" aria-hidden="true"></span></div>
+        <div class="stats"><div><small>접속 중</small><b>12명</b></div><div><small>오늘 매칭</small><b>3건</b></div><div><small>누적</small><b>48건</b></div></div>
+        <div class="row"><span class="stars">★★★★★</span><span class="tag">대화가 즐거워요</span></div>
+        <p class="muted" style="margin:0">덕분에 정말 즐거운 시간이었어요!</p>
+      </div>
+      <div class="nav" aria-hidden="true"><span><i></i>홈</span><span class="on"><i></i>매칭</span><span><i></i>채팅</span><span><i></i>게시판</span><span><i></i>내 정보</span></div>
+    </div>
+  </section>
+  <p class="note">미리보기 속 숫자와 글은 화면 확인용 예시입니다. 별점(노랑)처럼 의미가 있는 색은 그대로 둡니다.</p>
+</div>
+
+<script>
+const backgrounds=[
+  {id:"navy",name:"지금 · 네이비",sw:"#070b1c",desc:"현재 배경. 푸른 기가 섞인 남색이라 다크도 라이트도 아닌 느낌",bg:"#070b1c",glow:"rgba(74,51,181,.24)",panel:"#0f1428",panel2:"#151b33",line:"rgba(255,255,255,.08)",fg:"#f5f5f7",muted:"#a6adc8",dim:"#6b7290",ghost:"rgba(255,255,255,.05)"},
+  {id:"black",name:"1 · 트루 다크",sw:"#0b0b0d",desc:"색 기운을 뺀 진짜 검정. 가장 또렷한 다크모드, 메인컬러가 가장 잘 삼",bg:"#0b0b0d",glow:"rgba(255,255,255,.03)",panel:"#141417",panel2:"#1b1b1f",line:"rgba(255,255,255,.08)",fg:"#f5f5f7",muted:"#a1a1aa",dim:"#71717a",ghost:"rgba(255,255,255,.05)"},
+  {id:"warm",name:"2 · 웜 차콜",sw:"#120e10",desc:"아이콘 속 바(bar)처럼 살짝 따뜻한 검정. 밤 분위기, 앰버·로즈와 잘 맞음",bg:"#120e10",glow:"rgba(238,127,69,.07)",panel:"#1b1518",panel2:"#241d21",line:"rgba(255,235,225,.08)",fg:"#f7f2f0",muted:"#b4a8ad",dim:"#7d7176",ghost:"rgba(255,240,230,.05)"},
+  {id:"plum",name:"3 · 딥 플럼",sw:"#0d0912",desc:"보랏빛이 아주 살짝 도는 검정. 지금 느낌은 살리고 남색 기운만 뺌",bg:"#0d0912",glow:"rgba(124,58,237,.10)",panel:"#161020",panel2:"#1e1729",line:"rgba(240,230,255,.08)",fg:"#f5f3f8",muted:"#ada3c0",dim:"#766c88",ghost:"rgba(245,235,255,.05)"},
+  {id:"light",name:"4 · 라이트",sw:"#f6f5f8",desc:"밝은 배경. 배너·신뢰 카드처럼 강조할 곳만 어둡게 둠",bg:"#f6f5f8",glow:"rgba(111,86,255,.06)",panel:"#ffffff",panel2:"#f3f1f6",line:"rgba(20,10,40,.08)",fg:"#17151c",muted:"#5f5a6b",dim:"#8a8496",ghost:"rgba(20,10,40,.04)",light:true}
+];
+// 밝은 색은 버튼 글자를 검정(on)으로 둬서 읽기 쉽게 한다
+const A=(group,id,name,desc,main,g1,g2,chip,rgb,hero1,hero2,on="#fff")=>({group,id,name,desc,main,g1,g2,chip,soft:`rgba(${rgb},.2)`,glow:`rgba(${rgb},.4)`,hero1,hero2,on});
+const accents=[
+  A("지금","violet","바이올렛","현재 색 #6f56ff","#6f56ff","#7d5cff","#5c3df0","#ddd6fe","111,86,255","#2b1a6b","#14102f"),
+  A("감각 · 트렌디","lavender","라벤더 미스트","부드럽고 몽환적인 연보라 #a48bff. 요즘 감성 앱에서 많이 쓰는 톤","#a48bff","#b8a2ff","#8a6cf2","#e4dcff","164,139,255","#2c2257","#151130","#140f2a"),
+  A("감각 · 트렌디","coral","피치 코랄","따뜻하고 생기 있는 코랄 #ff7d6b. 친근한 만남 느낌","#ff7d6b","#ff9578","#f2604f","#ffd5cc","255,125,107","#4a1d18","#1c1214"),
+  A("감각 · 트렌디","cherry","체리 레드","선명하고 설레는 레드 #ff4d6d. 데이팅 앱다운 강렬함","#ff4d6d","#ff6680","#e0344f","#ffd0d8","255,77,109","#4a1020","#1c0d14"),
+  A("감각 · 트렌디","mint","민트 아쿠아","산뜻하고 깔끔한 민트 #34d3b4. 어두운 배경에서 세련됨","#34d3b4","#4fe0c2","#1fb79a","#c8f5ea","52,211,180","#0f3a33","#0d1817","#06231d"),
+  A("감각 · 트렌디","orchid","오키드 핑크","고급스러운 핑크빛 보라 #d46bd8. 섬세하고 감각적","#d46bd8","#e07fe2","#b44fc0","#f5d0f5","212,107,216","#3f1745","#180f1f"),
+  A("신뢰 · 전문","sapphire","사파이어 블루","믿음직한 파랑 #3d6bff. 금융·보안 앱처럼 안정감","#3d6bff","#5580ff","#2a52e0","#d3defe","61,107,255","#14245a","#0d1330"),
+  A("신뢰 · 전문","indigo","인디고","파랑과 보라 사이 #5b5ff0. 지금 느낌을 살리면서 더 단정함","#5b5ff0","#6d70ff","#4646d2","#dcdcff","91,95,240","#1f1f5c","#111230"),
+  A("신뢰 · 전문","emerald","에메랄드","안전·성장을 뜻하는 초록 #14b88a. 검증된 사람 느낌","#14b88a","#22c79a","#0e9a73","#c7f2e2","20,184,138","#0d3a2d","#0c1714"),
+  A("신뢰 · 전문","teal","딥 틸","차분하고 지적인 청록 #0f9fb0. 전문 서비스 느낌","#0f9fb0","#1fb3c4","#0b8394","#c6eef3","15,159,176","#0c3540","#0b1519"),
+  A("신뢰 · 전문","gold","샴페인 골드","프리미엄 회원제 느낌의 골드 #c9a46b. 고급스러운 신뢰","#c9a46b","#d8b67f","#b08b52","#f1e3c8","201,164,107","#3a2c17","#17130e","#1d1408"),
+  A("아이콘에서","magenta","네온 마젠타","바(bar) 네온사인 색 #d6409f. 화사하고 밤 분위기","#d6409f","#e2509f","#a52f9a","#fbcfe8","214,64,159","#4a1446","#1a0f2a"),
+  A("아이콘에서","amber","캔들 앰버","촛불·조명 색 #ee7f45. 따뜻하고 편안한 느낌","#ee7f45","#f59a52","#d9603c","#fed7aa","238,127,69","#4a2312","#1c1220"),
+  A("아이콘에서","rose","와인 로즈","와인·반사광 색 #e0566e. 차분하고 성숙한 느낌","#e0566e","#ea6a7f","#b13a52","#fecdd3","224,86,110","#4a1624","#1a0f1f"),
+  A("아이콘에서","sunset","바 선셋","마젠타→앰버 #e45a7c. 아이콘 전체 분위기 그대로","#e45a7c","#c93d91","#f08a4b","#fecdd3","228,90,124","#45163f","#24121c")
+];
+// 나머지 시안은 대표색(과 두 번째 색)만 정하고 나머지 톤은 계산으로 만든다
+const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const toHex=a=>"#"+a.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+const mix=(h,t,k)=>{const a=hx(h),b=hx(t);return toHex(a.map((v,i)=>v+(b[i]-v)*k))};
+const lum=h=>{const [r,g,b]=hx(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*r+.7152*g+.0722*b};
+const M=(group,id,name,desc,main,second)=>{
+  const g1=second?main:mix(main,"#ffffff",.12), g2=second?second:mix(main,"#000000",.16);
+  const on=lum(mix(g1,g2,.5))>.42?"#14110f":"#fff";
+  return {group,id,name,desc:desc+" "+main+(second?" → "+second:""),main,g1,g2,chip:mix(main,"#ffffff",.72),
+    soft:`rgba(${hx(main).join(",")},.2)`,glow:`rgba(${hx(main).join(",")},.4)`,hero1:mix(main,"#0b0b10",.72),hero2:mix(second||main,"#0b0b10",.9),on};
+};
+accents.push(
+  M("파스텔 · 소프트","babyblue","베이비 블루","맑고 순한 하늘색. 편안하고 부담 없는 첫인상","#8ab4ff"),
+  M("파스텔 · 소프트","sage","세이지 그린","톤 다운된 풀색. 차분하고 자연스러운 감성","#9cc5a1"),
+  M("파스텔 · 소프트","dustypink","더스티 핑크","채도를 낮춘 핑크. 은은하고 세련된 설렘","#e7a1b0"),
+  M("파스텔 · 소프트","peach","피치","말랑한 복숭아색. 다정하고 따뜻한 느낌","#ffb38a"),
+  M("파스텔 · 소프트","lilac","라일락","가벼운 보라. 지금 보라 계열을 더 부드럽게","#c4a7e7"),
+  M("뉴트럴 · 모던","mocha","모카","커피 같은 브라운. 카페 데이트처럼 편안함","#b08968"),
+  M("뉴트럴 · 모던","slate","슬레이트 블루","회색이 섞인 파랑. 조용하고 지적인 느낌","#6b7fd7"),
+  M("뉴트럴 · 모던","olive","올리브","깊이 있는 올리브. 유행 타지 않는 모던함","#8a9a5b"),
+  M("뉴트럴 · 모던","sand","샌드","모래빛 베이지. 미니멀하고 고급스러움","#d6b88a"),
+  M("뉴트럴 · 모던","smoky","스모키 블루","안개 낀 듯한 파랑. 감성적이면서 믿음직함","#5f8fb4"),
+  M("뉴트럴 · 모던","taupe","토프 로즈","회갈색 섞인 장미색. 성숙하고 절제된 느낌","#b4848c"),
+  M("비비드 · 팝","electric","일렉트릭 블루","쨍한 파랑. 젊고 에너지 넘치는 느낌","#2f7bff"),
+  M("비비드 · 팝","hotpink","핫 핑크","강렬한 핑크. 눈에 확 띄는 설렘","#ff3d9a"),
+  M("비비드 · 팝","tangerine","탠저린","상큼한 귤색. 활발하고 유쾌함","#ff8a1f"),
+  M("비비드 · 팝","lime","라임","형광 연두. 개성 강한 스트리트 감성","#a3e635"),
+  M("비비드 · 팝","cyan","시안","청량한 하늘 청록. 디지털하고 시원함","#22d3ee"),
+  M("비비드 · 팝","vibe","바이브 퍼플","채도 높은 보라. 지금보다 더 선명한 보라","#9b5cff"),
+  M("딥 · 시크","burgundy","버건디","깊은 와인색. 무게감 있는 고급스러움","#b0244f"),
+  M("딥 · 시크","forest","포레스트","짙은 숲색. 신중하고 안정적인 느낌","#2f8a62"),
+  M("딥 · 시크","midnight","미드나잇 블루","밤하늘 파랑. 단단한 신뢰감","#3a55c4"),
+  M("딥 · 시크","royal","로열 퍼플","진한 보라. 격식 있고 우아함","#7330e0"),
+  M("딥 · 시크","plum","플럼","자두색. 차분하면서 관능적인 무드","#9a3f95"),
+  M("그라데이션 · 듀오톤","aurora","오로라","민트에서 파랑으로. 신비롭고 트렌디함","#2fd0b0","#3d6bff"),
+  M("그라데이션 · 듀오톤","sunrise","선라이즈","코랄에서 골드로. 따뜻하고 희망찬 느낌","#ff7360","#f5b84f"),
+  M("그라데이션 · 듀오톤","twilight","트와일라잇","인디고에서 핑크로. 해 질 녘 데이트 무드","#5b5ff0","#e36fc1"),
+  M("그라데이션 · 듀오톤","ocean","오션","청록에서 사파이어로. 깊고 믿음직함","#12a7b8","#2a52e0"),
+  M("그라데이션 · 듀오톤","berry","베리","체리에서 보라로. 달콤하고 강렬함","#ff4d6d","#8b5cf6"),
+  M("그라데이션 · 듀오톤","peachy","피치 라벤더","복숭아에서 라벤더로. 몽글몽글한 감성","#ff9f80","#a48bff")
+);
+// 요청: 에메랄드 · 섹시한 빨강 · 영롱한 파랑 — '지금' 바로 아래에 보여준다
+accents.splice(1,0,
+  M("에메랄드","jewel-emerald","주얼 에메랄드","보석처럼 맑고 깊은 초록. 기존 에메랄드보다 더 영롱함","#12c48f","#087a5c"),
+  M("에메랄드","deep-emerald","딥 에메랄드","짙고 고급스러운 에메랄드. 차분한 신뢰감","#0b9c72"),
+  M("에메랄드","emerald-glow","에메랄드 글로우","에메랄드에서 청록으로 빛나는 그라데이션","#19d6a0","#0a8fa0"),
+  M("에메랄드","mint-emerald","민트 에메랄드","밝고 싱그러운 에메랄드. 산뜻한 첫인상","#3ee0ad"),
+  M("섹시한 빨강","red-lip","레드 립","립스틱 같은 정통 빨강. 당당하고 매혹적","#e3243b"),
+  M("섹시한 빨강","ruby","루비","보석 루비처럼 붉은 장미빛. 관능적이고 고급스러움","#d01558"),
+  M("섹시한 빨강","crimson-night","크림슨 나이트","밤에 어울리는 짙은 크림슨. 은밀하고 강렬함","#b3122e"),
+  M("섹시한 빨강","scarlet-glow","스칼렛 글로우","새빨강에서 와인으로 번지는 그라데이션","#ff2d55","#9c0f3f"),
+  M("섹시한 빨강","velvet","벨벳 레드","벨벳 드레스 같은 깊은 빨강에서 버건디로","#d41f3c","#6e0f2c"),
+  M("영롱한 파랑","sapphire-glow","사파이어 글로우","파랑에서 하늘빛 청록으로 반짝이는 그라데이션","#3b82f6","#22d3ee"),
+  M("영롱한 파랑","aquamarine","아쿠아마린","보석 아쿠아마린처럼 투명한 파랑","#3cc6e8","#2f7bff"),
+  M("영롱한 파랑","cobalt","코발트","깊고 선명한 코발트 블루. 단단하고 맑음","#1f5bff"),
+  M("영롱한 파랑","ice-blue","아이스 블루","얼음처럼 맑고 밝은 파랑","#7cc4ff"),
+  M("영롱한 파랑","iris","아이리스","파랑에서 보라로 빛이 도는 그라데이션","#4c7dff","#9b6bff"),
+  M("매트릭스","matrix","매트릭스 그린","영화 속 코드 비처럼 쨍한 형광 초록. 트루 다크와 가장 잘 맞음","#00ff41"),
+  M("매트릭스","terminal","터미널 그린","형광 초록에서 어두운 초록으로 흘러내리는 코드 느낌","#22e35a","#0a6b2a"),
+  M("매트릭스","phosphor","포스포 그린","옛 모니터 형광체처럼 살짝 누런 초록. 레트로 해커 감성","#5cff7a"),
+  M("마지막 추천","champagne","샴페인 골드","절제된 금빛. 고급스럽고 어른스러운 신뢰감","#d6ad60"),
+  M("마지막 추천","deep-teal","딥 틸","청록과 파랑 사이. 차분하면서 세련된 전문가 느낌","#0fa3b1"),
+  M("마지막 추천","coral-red","코랄 레드","빨강보다 부드러운 산호빛. 다정하고 설레는 만남","#ff5a5f")
+);
+const root=document.documentElement;
+let curBg=backgrounds[1], curAc=accents[0];
+function paint(){
+  const b=curBg,a=curAc,set=(k,v)=>root.style.setProperty("--"+k,v);
+  set("bg",b.bg);set("bg-glow",b.glow);set("panel",b.panel);set("panel-2",b.panel2);set("line",b.line);set("fg",b.fg);set("muted",b.muted);set("dim",b.dim);set("ghost",b.ghost);
+  for(const k of ["main","g1","g2","chip","soft","glow","hero1","hero2"]) set(k,a[k]);
+  set("on-main",a.on);
+  set("soft",b.light?a.soft.replace(/,\.\d+\)$/,",.14)"):a.soft);
+  set("tag-fg",b.light?(a.on==="#fff"?a.main:a.g2):a.chip);
+  document.querySelectorAll("#bgPicker button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.id===b.id)));
+  document.querySelectorAll("#accentPicker button").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.id===a.id)));
+  document.getElementById("bgDesc").textContent=b.desc;
+  document.getElementById("accentDesc").textContent=a.desc;
+  try{localStorage.setItem("pal",b.id+"|"+a.id)}catch(e){}
+}
+function build(list,el,dot,on){
+  for(const p of list){const x=document.createElement("button");x.type="button";x.dataset.id=p.id;x.innerHTML='<i style="background:'+dot(p)+'"></i>'+p.name;x.onclick=()=>{on(p);paint()};el.append(x)}
+}
+build(backgrounds,document.getElementById("bgPicker"),p=>p.sw,p=>curBg=p);
+{
+  const wrap=document.getElementById("accentPicker");
+  for(const g of [...new Set(accents.map(a=>a.group))]){
+    const box=document.createElement("div");box.className="group";
+    const label=document.createElement("span");label.textContent=g;
+    const row=document.createElement("div");row.className="picker";row.setAttribute("role","group");row.setAttribute("aria-label",g);
+    box.append(label,row);wrap.append(box);
+    build(accents.filter(a=>a.group===g),row,p=>"linear-gradient(135deg,"+p.g1+","+p.g2+")",p=>curAc=p);
+  }
+}
+try{const [bi,ai]=(localStorage.getItem("pal")||"").split("|");curBg=backgrounds.find(x=>x.id===bi)||curBg;curAc=accents.find(x=>x.id===ai)||curAc}catch(e){}
+paint();
+</script>

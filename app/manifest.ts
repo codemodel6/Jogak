@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "조각 서비스 웹앱입니다.",
     start_url: "/",
     display: "standalone",
-    background_color: "#090b1b",
-    theme_color: "#090b1b",
+    background_color: "#0b0b0d",
+    theme_color: "#0b0b0d",
     icons: [
       {
         src: "/icons/icon-192.png",

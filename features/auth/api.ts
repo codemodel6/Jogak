@@ -1,3 +1,4 @@
+import { disablePush } from "@/shared/lib/push/push";
 import { supabase } from "@/shared/supabase";
 import {
   getCurrentSession,
@@ -65,6 +66,8 @@ export async function getPostLoginPath() {
 }
 
 export async function signOut() {
+  // 로그아웃한 기기로는 더 이상 알림이 가지 않게 이 기기의 구독을 먼저 지운다
+  await disablePush().catch(() => undefined);
   const { error } = await supabase.auth.signOut();
 
   if (error) {

@@ -8,6 +8,7 @@ type MessageRow = {
   user_id: string;
   user_name?: string | null;
   message: string;
+  kind?: string | null;
   created_at?: string | null;
 };
 
@@ -32,6 +33,7 @@ export async function getMessages(chatId: string) {
     userId: message.user_id,
     userName: message.user_name ?? profiles.get(message.user_id)?.name ?? "익명",
     message: message.message,
+    kind: message.kind === "system" ? ("system" as const) : ("text" as const),
     timestamp: message.created_at ?? new Date().toISOString(),
   }));
 

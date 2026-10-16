@@ -116,7 +116,7 @@ export default function ReviewModal({ chatId, matchId, partnerName, onClose, onD
         role="dialog"
         aria-modal="true"
         aria-label={`${partnerName}님 후기 남기기`}
-        className="relative max-h-[92dvh] w-full overflow-y-auto rounded-t-[26px] border border-white/10 bg-[#151a2e] px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-6 shadow-2xl md:max-w-[440px] md:rounded-[26px] md:pb-6"
+        className="relative max-h-[92dvh] w-full overflow-y-auto rounded-t-[26px] border border-white/10 bg-surface px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-6 shadow-2xl md:max-w-[440px] md:rounded-[26px] md:pb-6"
       >
         <button
           type="button"
@@ -247,7 +247,7 @@ export default function ReviewModal({ chatId, matchId, partnerName, onClose, onD
             type="button"
             disabled={submitMutation.isPending}
             onClick={() => void handleSubmit()}
-            className="h-12 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-[0.95rem] font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+            className="h-12 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-[0.95rem] font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-60"
           >
             {submitMutation.isPending ? "등록 중..." : "후기 등록"}
           </button>

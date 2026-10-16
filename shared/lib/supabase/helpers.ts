@@ -4,6 +4,8 @@ import { supabase } from "@/shared/supabase";
 
 export const photoBucket =
   process.env.NEXT_PUBLIC_SUPABASE_PHOTO_BUCKET ?? "profile-photos";
+// 실물 사진: 비공개 저장소. 매칭 확인 창에서만 시간제한 링크로 연다.
+export const facePhotoBucket = "face-photos";
 
 export type ProfileRow = {
   user_id: string;
@@ -21,7 +23,15 @@ export type ProfileRow = {
   onboarded_at?: string | null;
   trust_score?: number | null;
   introduction?: string | null;
+  avatar_url?: string | null;
+  face_photo_path?: string | null;
+  has_face_photo?: boolean | null;
 };
+
+// 화면에 보이는 사진(photos)은 프로필 아이콘 1장뿐이다. 실물 사진은 매칭 확인 창에서만 따로 연다.
+function withAvatar(row: ProfileRow): ProfileRow {
+  return { ...row, photos: row.avatar_url ? [row.avatar_url] : [] };
+}
 
 export async function getCurrentSession() {
   const {
@@ -64,7 +74,7 @@ export async function getProfileRow(userId: string) {
     throw error;
   }
 
-  return data;
+  return data ? withAvatar(data) : data;
 }
 
 export function buildProfile(user: User, row?: ProfileRow | null) {
@@ -91,6 +101,9 @@ export function buildProfile(user: User, row?: ProfileRow | null) {
     mbti: row?.mbti ?? "",
     purpose: row?.purpose ?? "",
     photosPrivate: row?.photos_private ?? false,
+    avatarUrl: row?.avatar_url ?? undefined,
+    facePhotoPath: row?.face_photo_path ?? undefined,
+    hasFacePhoto: Boolean(row?.has_face_photo),
     onboarded: Boolean(row?.onboarded_at),
     trustScore: row?.trust_score ?? 70,
     introduction: row?.introduction ?? "",
@@ -111,7 +124,7 @@ export async function getProfileMap(userIds: string[]) {
     throw error;
   }
 
-  return new Map((data ?? []).map((profile) => [profile.user_id, profile as ProfileRow]));
+  return new Map((data ?? []).map((profile) => [profile.user_id, withAvatar(profile as ProfileRow)]));
 }
 
 export function extractStoragePath(publicUrl: string) {

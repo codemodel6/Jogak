@@ -101,7 +101,7 @@ export default function AppShell({ children, trust }: AppShellProps) {
                 href={item.href}
                 className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1.25rem] px-2 py-2.5 text-xs font-medium transition ${
                   isActive
-                    ? "bg-[linear-gradient(135deg,rgba(139,92,246,0.94),rgba(79,70,229,0.9))] text-white shadow-[0_0_28px_rgba(139,92,246,0.28)]"
+                    ? "bg-[linear-gradient(135deg,rgba(139,92,246,0.94),rgba(79,70,229,0.9))] text-on-accent shadow-[0_0_28px_rgba(139,92,246,0.28)]"
                     : "text-zinc-400 hover:bg-white/5 hover:text-violet-200"
                 }`}
               >

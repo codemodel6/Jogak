@@ -23,6 +23,14 @@ export function useLiveLocationSharing(chatId: string, enabled: boolean) {
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastSent = useRef<{ lat: number; lng: number; at: number } | null>(null);
+  // 매칭이 끝나면(취소·만남 성사 등) 공유를 끈다. 다음 매칭에서 저절로 다시 켜지지 않게 한다.
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (prevEnabled !== enabled) {
+    setPrevEnabled(enabled);
+    if (!enabled) {
+      setSharing(false);
+    }
+  }
 
   const active = sharing && enabled && Boolean(chatId);
 

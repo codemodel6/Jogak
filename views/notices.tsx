@@ -123,7 +123,7 @@ export default function NoticesPage({ initialCategory = "전체" }: { initialCat
           </div>
           <button
             type="submit"
-            className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-5 text-[0.9rem] font-semibold text-white"
+            className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-5 text-[0.9rem] font-semibold text-on-accent"
           >
             검색
           </button>
@@ -232,7 +232,7 @@ export default function NoticesPage({ initialCategory = "전체" }: { initialCat
                         <span className="shrink-0 text-[0.8rem] font-semibold text-violet-300">[{notice.commentCount}]</span>
                       )}
                       {notice.isNew && (
-                        <span className="shrink-0 rounded-md bg-[#8f522c] px-1.5 py-0.5 text-[0.68rem] font-semibold text-orange-100">
+                        <span className="shrink-0 keep-dark rounded-md bg-[#8f522c] px-1.5 py-0.5 text-[0.68rem] font-semibold text-orange-100">
                           NEW
                         </span>
                       )}
@@ -293,7 +293,7 @@ export default function NoticesPage({ initialCategory = "전체" }: { initialCat
                 className={cx(
                   "h-9 min-w-9 rounded-[10px] px-2 text-[0.88rem] font-medium transition",
                   number === currentPage
-                    ? "bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white"
+                    ? "bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-on-accent"
                     : "text-zinc-300 hover:bg-white/6",
                 )}
               >

@@ -296,7 +296,7 @@ export default function HomeBanner() {
     <section
       aria-roledescription="carousel"
       aria-label="조각 소개"
-      className="group relative overflow-hidden rounded-[22px] border border-white/7 shadow-[0_18px_36px_rgba(0,0,0,0.26)]"
+      className="keep-dark group relative overflow-hidden rounded-[22px] border border-white/7 shadow-[0_18px_36px_rgba(0,0,0,0.26)]"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}

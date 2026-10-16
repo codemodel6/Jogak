@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { FiCheck, FiChevronLeft, FiCreditCard, FiInfo, FiSmartphone } from "react-icons/fi";
 
 import { useProfileQuery } from "@/entities/profile/hooks";
+import { POINT_REASON_LABEL, PRICE } from "@/entities/wallet";
+import { usePointHistoryQuery, useWalletQuery } from "@/entities/wallet/hooks";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
 import Skeleton from "@/shared/ui/skeleton";
 import TrustCrystalIcon from "@/shared/ui/trust-crystal-icon";
 import MainLayout from "@/widgets/main-layout";
 
-// 결제·내역은 화면만 먼저 만든 상태다. 실제 상품·결제·내역 연동은 이후 작업에서 붙인다.
+// 결제는 화면만 먼저 만든 상태다(결제 대행사 연동 전). 이용 내역은 point_transactions에서 읽는다.
 // 신뢰 포인트 1개 = 1,000원
 const POINT_PRICE = 1000;
 
@@ -36,14 +38,26 @@ type HistoryType = "충전" | "사용" | "적립";
 
 type HistoryItem = { id: number; type: HistoryType; title: string; date: string; amount: number; balance: number };
 
-// 포인트 내역은 아직 저장하는 테이블이 없어 비어 있다. 충전·사용 기록을 쌓기 시작하면 여기에 연결한다.
-const historyItems: HistoryItem[] = [];
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// 신뢰 포인트를 쓰는 곳 (무료 매칭권을 다 쓴 뒤부터 포인트가 필요하다)
+const USES = [
+  { label: "추가 매칭", price: `${PRICE.extraRequest}P`, description: "무료 매칭권 3장을 다 쓴 뒤 한 번 더" },
+  { label: "💜 진심 요청", price: `+${PRICE.priorityRequest}P`, description: "상대 채팅 목록 맨 위에 먼저 보여요" },
+  { label: "글 상단 노출", price: `${PRICE.postBoost}P`, description: "1시간 동안 매칭 목록 맨 앞" },
+  { label: "신뢰 점수 회복", price: "1P / 1점", description: "깎인 신뢰 점수를 되돌려요" },
+];
 
 const notes = [
   "충전한 포인트의 유효기간은 결제일로부터 5년입니다.",
   "보너스 포인트는 충전 포인트보다 먼저 사용됩니다.",
   "결제 후 7일 이내, 사용하지 않은 포인트에 한해 환불할 수 있습니다.",
-  "신뢰 포인트 1개는 1,000원이며, 신뢰 회복에 사용할 수 있습니다.",
+  "신뢰 포인트 1개는 1,000원이며, 추가 매칭·진심 요청·글 상단 노출·신뢰 회복에 사용할 수 있습니다.",
+  "무료 매칭권은 매일 3장이 주어지고, 한국 시간 자정에 다시 3장으로 채워집니다(남은 매칭권은 이월되지 않습니다).",
 ];
 
 function cx(...values: Array<string | false | null | undefined>) {
@@ -82,6 +96,17 @@ export default function PointsPage() {
   const pointsLoading = !mounted || isAuthenticated !== true || profileQuery.isPending;
   const points = profileQuery.data?.profile.hearts ?? 0;
   const selected = packages.find((item) => item.id === selectedId) ?? packages[0];
+  const walletQuery = useWalletQuery(isAuthenticated === true);
+  const wallet = walletQuery.data;
+  const historyQuery = usePointHistoryQuery(isAuthenticated === true && tab === "history");
+  const historyItems: HistoryItem[] = (historyQuery.data ?? []).map((row) => ({
+    id: row.id,
+    type: row.reason === "charge" ? "충전" : row.delta > 0 ? "적립" : "사용",
+    title: POINT_REASON_LABEL[row.reason] ?? "포인트 변동",
+    date: formatDateTime(row.createdAt),
+    amount: row.delta,
+    balance: row.balance,
+  }));
   const filteredHistory = historyItems.filter((item) => historyFilter === "전체" || item.type === historyFilter);
 
   const handlePay = () => {
@@ -101,7 +126,7 @@ export default function PointsPage() {
       <div className="mt-3 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
         {/* 보유 포인트: PC에서는 오른쪽에 고정, 모바일에서는 맨 위 */}
         <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-5 xl:col-start-2 xl:row-start-1">
-          <section className="rounded-[22px] bg-[linear-gradient(135deg,rgba(87,60,216,0.92),rgba(25,20,74,0.94))] px-5 py-5 shadow-[0_22px_42px_rgba(29,20,84,0.3)]">
+          <section className="keep-dark rounded-[22px] bg-[linear-gradient(135deg,rgba(87,60,216,0.92),rgba(25,20,74,0.94))] px-5 py-5 shadow-[0_22px_42px_rgba(29,20,84,0.3)]">
             <p className="text-[0.9rem] font-medium text-white/80">보유 포인트</p>
             <div className="mt-3 flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[radial-gradient(circle_at_50%_30%,rgba(196,181,253,0.35),transparent_60%),linear-gradient(150deg,#241c46,#120d2a_60%,#0a0718)] shadow-[0_0_0_1px_rgba(196,181,253,0.25)]">
@@ -116,8 +141,30 @@ export default function PointsPage() {
               )}
             </div>
             <p className="mt-4 rounded-[12px] bg-white/10 px-3 py-2 text-[0.82rem] text-white/85">
-              신뢰 포인트 1개는 1,000원이에요. 신뢰 점수 1점을 회복할 때 1개가 사용돼요.
+              오늘 무료 매칭권{" "}
+              <b className="text-white">
+                {wallet ? `${wallet.freeLeft}/${wallet.freeTotal}장` : "-"}
+              </b>
+              {wallet && wallet.bonusTickets > 0 && ` · 보너스 ${wallet.bonusTickets}장`}
+              {wallet && wallet.streak > 0 && ` · 연속 출석 ${wallet.streak}일`}
+              <br />
+              <span className="text-white/65">7일 연속 출석하면 보너스 매칭권 1장을 드려요.</span>
             </p>
+          </section>
+
+          <section className="desktop-panel px-5 py-4">
+            <h2 className="text-[0.95rem] font-semibold text-white">신뢰 포인트 쓰는 곳</h2>
+            <ul className="mt-2 divide-y divide-white/7">
+              {USES.map((use) => (
+                <li key={use.label} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="min-w-0">
+                    <span className="block text-[0.88rem] text-zinc-100">{use.label}</span>
+                    <span className="block text-[0.76rem] text-zinc-500">{use.description}</span>
+                  </span>
+                  <span className="shrink-0 text-[0.88rem] font-semibold text-violet-300">{use.price}</span>
+                </li>
+              ))}
+            </ul>
           </section>
         </aside>
 
@@ -136,7 +183,7 @@ export default function PointsPage() {
                 className={cx(
                   "rounded-[12px] py-2.5 text-[0.92rem] font-medium transition",
                   tab === item.key
-                    ? "bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white shadow-[0_10px_24px_rgba(94,63,225,0.3)]"
+                    ? "bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-on-accent shadow-[0_10px_24px_rgba(94,63,225,0.3)]"
                     : "text-zinc-400 hover:text-white",
                 )}
               >
@@ -166,7 +213,7 @@ export default function PointsPage() {
                         )}
                       >
                         {item.badge && (
-                          <span className="absolute right-2.5 top-2.5 rounded-full bg-[#8f522c] px-2 py-0.5 text-[0.68rem] font-semibold text-orange-100">
+                          <span className="absolute right-2.5 top-2.5 keep-dark rounded-full bg-[#8f522c] px-2 py-0.5 text-[0.68rem] font-semibold text-orange-100">
                             {item.badge}
                           </span>
                         )}
@@ -179,7 +226,7 @@ export default function PointsPage() {
                         </p>
                         <p className="mt-2 text-[0.95rem] text-zinc-200">{item.price.toLocaleString()}원</p>
                         {active && (
-                          <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-white">
+                          <span className="absolute bottom-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-on-accent">
                             <FiCheck className="text-[0.75rem]" />
                           </span>
                         )}
@@ -275,7 +322,14 @@ export default function PointsPage() {
                   </button>
                 ))}
               </div>
-              {filteredHistory.length === 0 && (
+              {historyQuery.isLoading &&
+                Array.from({ length: 3 }, (_, index) => (
+                  <div key={index} className="flex items-center justify-between px-3 py-3.5">
+                    <Skeleton className="h-4 w-40 rounded-md" />
+                    <Skeleton className="h-4 w-12 rounded-md" />
+                  </div>
+                ))}
+              {!historyQuery.isLoading && filteredHistory.length === 0 && (
                 <p className="px-3 py-10 text-center text-[0.86rem] text-zinc-400">
                   아직 포인트 이용 내역이 없어요.
                 </p>
@@ -334,7 +388,7 @@ export default function PointsPage() {
       </div>
 
       {notice && (
-        <div className="fixed left-1/2 top-4 z-[130] -translate-x-1/2 rounded-2xl border border-violet-400/20 bg-[#1b1640]/95 px-4 py-3 text-sm text-violet-100 shadow-xl">
+        <div className="fixed left-1/2 top-4 z-[130] -translate-x-1/2 rounded-2xl border border-violet-400/20 bg-surface/95 px-4 py-3 text-sm text-violet-100 shadow-xl">
           {notice}
         </div>
       )}

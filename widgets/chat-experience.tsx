@@ -31,6 +31,7 @@ import { useMessagesQuery, useSendMessageMutation } from "@/entities/message/hoo
 import { useProfileQuery, useUserProfileQuery } from "@/entities/profile/hooks";
 import { markChatRead } from "@/entities/chat/api";
 import { useAuthStatusQuery, useCurrentUserIdQuery } from "@/features/auth/hooks";
+import MatchWithdrawButton from "@/features/match/match-withdraw-button";
 import { useOnlineUserIds } from "@/shared/lib/presence/online-users";
 import { estimateTopPercent, getTrustGrade } from "@/shared/lib/trust";
 import Skeleton from "@/shared/ui/skeleton";
@@ -78,7 +79,7 @@ function Avatar({
   return (
     <div
       className={cx(
-        "relative overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#39466b,#182033)]",
+        "relative overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,var(--avatar-from),var(--avatar-to))]",
         sizeClass,
       )}
     >
@@ -159,12 +160,12 @@ function GroupAvatar({ count, sizeClass }: { count: number; sizeClass: string })
   return (
     <div
       className={cx(
-        "relative flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-[linear-gradient(135deg,#5b47e0,#2d2470)] text-white",
+        "relative flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-[linear-gradient(135deg,#5b47e0,#2d2470)] text-on-accent",
         sizeClass,
       )}
     >
       <FiUsers className="text-[1.15rem]" />
-      <span className="absolute -bottom-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#121730] bg-violet-500 px-1 text-[0.62rem] font-semibold">
+      <span className="absolute -bottom-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[var(--surface)] bg-violet-500 px-1 text-[0.62rem] font-semibold">
         {count}
       </span>
     </div>
@@ -237,6 +238,10 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
   const otherPhoto = activeChat?.otherUser.photos?.[0] ?? selectedSummary?.otherUser.photos?.[0];
   const isGroupChat = activeChat?.isGroup ?? selectedSummary?.isGroup ?? false;
   const groupTitleText = activeChat?.title ?? selectedSummary?.title ?? "단체 채팅";
+  // 글로 시작한 1:1 대화는 글 제목을 방 이름으로 쓴다
+  const postTitle = activeChat?.postTitle ?? selectedSummary?.postTitle ?? null;
+  // 매칭이 거절되면 방이 닫혀 메시지를 보낼 수 없다
+  const chatClosed = Boolean(activeChat?.closedReason);
   const groupMemberCount = activeChat?.members.length ?? selectedSummary?.memberCount ?? 0;
   const memberMap = new Map((activeChat?.members ?? []).map((member) => [member.userId, member]));
   const partners = partnersQuery.data?.partners ?? [];
@@ -373,8 +378,15 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <p className="chat-name-md line-clamp-1 font-semibold text-white">{chat.title}</p>
+              <div className="flex min-w-0 items-center gap-2">
+                {chat.closed && (
+                  <span className="shrink-0 rounded-md bg-white/8 px-1.5 py-[1px] text-[0.68rem] font-semibold text-zinc-400">종료</span>
+                )}
+                {chat.priorityIncoming && (
+                  <span className="shrink-0 rounded-md bg-violet-500/25 px-1.5 py-[1px] text-[0.68rem] font-bold text-violet-200">💜 진심</span>
+                )}
+                {/* 글로 시작한 대화는 글 제목이 방 이름, 상대 이름은 작게 */}
+                <p className="chat-name-md line-clamp-1 font-semibold text-white">{chat.postTitle ?? chat.title}</p>
               </div>
               {chat.lastMessage && (
                 <span className="chat-meta-text shrink-0 text-zinc-500">{formatListTime(chat.lastMessage.timestamp)}</span>
@@ -382,6 +394,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
             </div>
             <div className="mt-2 flex items-center justify-between gap-3">
               <p className="chat-body-text line-clamp-1 text-zinc-300">
+                {chat.postTitle && <span className="font-medium text-zinc-400">{chat.otherUser.name} · </span>}
                 {chat.lastMessage?.message ?? (chat.isGroup ? `참여자 ${chat.memberCount}명` : "아직 대화가 없어요")}
               </p>
             </div>
@@ -437,10 +450,12 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
           // 같은 사람이 3분 안에 이어서 보낸 메시지는 한 묶음: 사진·이름은 첫 메시지, 시간은 마지막 메시지에만
           const joinsPrev =
             !newDay &&
-            prev?.userId === message.userId &&
+            prev?.kind === "text" &&
+            prev.userId === message.userId &&
             new Date(message.timestamp).getTime() - new Date(prev.timestamp).getTime() < GROUP_GAP_MS;
           const joinsNext =
-            next?.userId === message.userId &&
+            next?.kind === "text" &&
+            next.userId === message.userId &&
             dayKey(next.timestamp) === dayKey(message.timestamp) &&
             new Date(next.timestamp).getTime() - new Date(message.timestamp).getTime() < GROUP_GAP_MS;
           const readers = mine && !joinsNext ? countReaders(message.timestamp) : 0;
@@ -455,6 +470,17 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                 </div>
               )}
 
+              {message.kind === "system" ? (
+                <div className="mt-4 flex justify-center">
+                  <div className="max-w-[85%] rounded-[14px] border border-rose-500/30 bg-rose-500/8 px-4 py-2.5 text-center">
+                    <p className="text-[0.82rem] font-semibold text-rose-200">
+                      {mine ? "매치를 취소했습니다." : "상대방이 매치를 취소하였습니다."}
+                    </p>
+                    <p className="mt-0.5 break-keep text-[0.78rem] text-zinc-300">사유: {message.message}</p>
+                    <p className="mt-0.5 text-[0.68rem] text-zinc-500">{formatMessageTime(message.timestamp)}</p>
+                  </div>
+                </div>
+              ) : (
               <div className={cx("flex gap-2", mine ? "justify-end" : "justify-start", joinsPrev ? "mt-1" : "mt-3")}>
                 {!mine &&
                   (joinsPrev ? (
@@ -484,8 +510,8 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                       className={cx(
                         "rounded-[18px] px-3.5 py-2 text-[0.9rem] leading-[1.45]",
                         mine
-                          ? "bg-[linear-gradient(135deg,rgba(93,68,234,0.98),rgba(114,76,240,0.96))] text-white"
-                          : "bg-[rgba(30,36,60,0.96)] text-zinc-100",
+                          ? "bg-[linear-gradient(135deg,rgba(93,68,234,0.98),rgba(114,76,240,0.96))] text-on-accent"
+                          : "bg-bubble text-zinc-100",
                         mine && !joinsPrev && "rounded-tr-[6px]",
                         !mine && !joinsPrev && "rounded-tl-[6px]",
                       )}
@@ -503,6 +529,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                   </div>
                 </div>
               </div>
+              )}
             </div>
           );
         })}
@@ -545,7 +572,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
           <button
             type="button"
             onClick={() => openGroupModal("invite")}
-            className="flex h-8 items-center gap-1.5 rounded-[10px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-3 text-[0.8rem] font-medium text-white transition hover:brightness-110"
+            className="flex h-8 items-center gap-1.5 rounded-[10px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-3 text-[0.8rem] font-medium text-on-accent transition hover:brightness-110"
           >
             <FiUserPlus className="text-[0.85rem]" />
             초대
@@ -681,7 +708,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                     <Skeleton className="h-5 w-28 rounded-md" />
                   ) : (
                     <h2 className="truncate text-[1.05rem] font-semibold text-white md:text-[1.15rem]">
-                      {isGroupChat ? groupTitleText : otherName}
+                      {isGroupChat ? groupTitleText : (postTitle ?? otherName)}
                     </h2>
                   )}
                   {!isGroupChat && otherOnline && (
@@ -696,19 +723,14 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                   <p className="chat-meta-text mt-0.5 truncate text-zinc-300">
                     {isGroupChat
                       ? `참여자 ${groupMemberCount}명`
-                      : `${otherGrade.name} · 신뢰 점수 ${otherTrustScore}점`}
+                      : `${postTitle ? `${otherName} · ` : ""}${otherGrade.name} · 신뢰 점수 ${otherTrustScore}점`}
                   </p>
                 )}
               </div>
             </button>
-            <button
-              type="button"
-              onClick={() => setProfileSheetOpen(true)}
-              aria-label={isGroupChat ? "참여자" : "상대방 정보"}
-              className="shrink-0 text-white xl:hidden"
-            >
-              <FiMoreHorizontal className="text-[1.3rem]" />
-            </button>
+            {activeChat && !isGroupChat && (
+              <MatchWithdrawButton chatId={activeChat.chatId} onNotice={setNotice} onError={setActionError} />
+            )}
           </div>
 
           <div className="border-b border-white/7 px-4 py-2.5 md:px-5">
@@ -724,7 +746,10 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
               <MatchPanel
                 chatId={activeChat.chatId}
                 currentUserId={currentUserId}
+                partnerUserId={activeChat.otherUser.userId}
                 partnerName={otherName}
+                partnerAvatar={activeChat.otherUser.photos?.[0]}
+                closedReason={activeChat.closedReason}
                 onNotice={setNotice}
                 onError={setActionError}
               />
@@ -738,7 +763,8 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
               <input
                 value={newMessage}
                 onChange={(event) => setNewMessage(event.target.value)}
-                placeholder="메시지를 입력하세요..."
+                placeholder={chatClosed ? "종료된 대화예요" : "메시지를 입력하세요..."}
+                disabled={chatClosed}
                 className="min-w-0 flex-1 bg-transparent text-sm text-white placeholder:text-zinc-500 focus:outline-none"
               />
               <button type="button" className="text-zinc-400">
@@ -749,8 +775,8 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
               </button>
               <button
                 type="submit"
-                disabled={sendMessageMutation.isPending}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#5f49eb,#724bf0)] text-white disabled:opacity-60"
+                disabled={sendMessageMutation.isPending || chatClosed}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#5f49eb,#724bf0)] text-on-accent disabled:opacity-60"
               >
                 <FiSend />
               </button>
@@ -777,7 +803,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
       {profileSheetOpen && (
         <div className="fixed inset-0 z-[120] bg-black/55 xl:hidden" onClick={() => setProfileSheetOpen(false)}>
           <div
-            className="absolute inset-x-0 bottom-0 mx-auto max-h-[85dvh] max-w-[560px] overflow-y-auto rounded-t-[2rem] border border-white/8 bg-[linear-gradient(180deg,rgba(14,19,38,0.98),rgba(10,14,28,0.98))] px-5 pb-6 pt-4"
+            className="absolute inset-x-0 bottom-0 mx-auto max-h-[85dvh] max-w-[560px] overflow-y-auto rounded-t-[2rem] border border-white/8 bg-[linear-gradient(180deg,var(--surface),var(--surface-end))] px-5 pb-6 pt-4"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/20" />
@@ -808,7 +834,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
         // 헤더를 눌렀을 때 뜨는 창과 같은 모양(아래에서 올라오는 창)으로 보여준다.
         <div className="fixed inset-0 z-[120] bg-black/55" onClick={() => setViewUserId(null)}>
           <div
-            className="absolute inset-x-0 bottom-0 mx-auto max-h-[85dvh] max-w-[560px] overflow-y-auto rounded-t-[2rem] border border-white/8 bg-[linear-gradient(180deg,rgba(14,19,38,0.98),rgba(10,14,28,0.98))] px-5 pb-6 pt-4"
+            className="absolute inset-x-0 bottom-0 mx-auto max-h-[85dvh] max-w-[560px] overflow-y-auto rounded-t-[2rem] border border-white/8 bg-[linear-gradient(180deg,var(--surface),var(--surface-end))] px-5 pb-6 pt-4"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/20" />
@@ -914,7 +940,7 @@ export default function ChatExperience({ mobileView, selectedChatId }: ChatExper
                         <span
                           className={cx(
                             "flex h-5 w-5 items-center justify-center rounded-full border",
-                            checked ? "border-violet-400 bg-violet-500 text-white" : "border-white/25",
+                            checked ? "border-violet-400 bg-violet-500 text-on-accent" : "border-white/25",
                           )}
                         >
                           {checked && <FiCheck className="text-[0.75rem]" />}

@@ -27,12 +27,12 @@ import {
 import { useMyActivityQuery } from "@/entities/activity/hooks";
 import type { Profile } from "@/entities/profile";
 import {
-  useDeletePhotoMutation,
+  useFacePhotoUrlQuery,
   useProfileQuery,
   useRecoverTrustMutation,
-  useReplacePhotoMutation,
+  useSetAvatarMutation,
+  useSetFacePhotoMutation,
   useUpdateProfileMutation,
-  useUploadPhotoMutation,
 } from "@/entities/profile/hooks";
 import { TRUST_RECOVERY_COST_PER_SCORE } from "@/entities/profile/api";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
@@ -62,7 +62,6 @@ type ProfileRow = {
   suffix?: string;
 };
 
-const MAX_PHOTOS = 3;
 const MAX_INTRO_LENGTH = 20;
 // 온보딩에서 고르는 목적과 같은 목록
 const PURPOSE_OPTIONS = ["재미", "헌팅", "친목", "진지한 만남", "술 한잔", "대화 상대"];
@@ -123,7 +122,7 @@ function ProfileAvatar({
   return (
     <div
       className={cx(
-        "flex items-center justify-center rounded-full border border-white/10 bg-[linear-gradient(135deg,#2b3154,#171b32)] text-white shadow-[0_18px_40px_rgba(0,0,0,0.22)]",
+        "flex items-center justify-center rounded-full border border-white/10 bg-[linear-gradient(135deg,var(--avatar-from),var(--avatar-to))] text-white shadow-[0_18px_40px_rgba(0,0,0,0.22)]",
         sizeClassName,
       )}
     >
@@ -185,15 +184,15 @@ export default function ProfilePage() {
     () => false,
   );
   const updateProfileMutation = useUpdateProfileMutation();
-  const uploadPhotoMutation = useUploadPhotoMutation();
-  const deletePhotoMutation = useDeletePhotoMutation();
-  const replacePhotoMutation = useReplacePhotoMutation();
+  const setAvatarMutation = useSetAvatarMutation();
+  const setFacePhotoMutation = useSetFacePhotoMutation();
   const [photoManagerOpen, setPhotoManagerOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [recoveryScore, setRecoveryScore] = useState(1);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const recoverTrustMutation = useRecoverTrustMutation();
-  const [photoTarget, setPhotoTarget] = useState<number | "add" | null>(null);
+  // 사진 2가지: 프로필 아이콘(누구에게나) / 실물 사진(매칭 확정 때만)
+  const [photoTarget, setPhotoTarget] = useState<"avatar" | "face" | null>(null);
 
   useEffect(() => {
     if (isAuthenticated === false) {
@@ -277,9 +276,7 @@ export default function ProfilePage() {
     }
   };
 
-  const photos = profile?.photos ?? [];
-
-  const openPhotoPicker = (target: number | "add") => {
+  const openPhotoPicker = (target: "avatar" | "face") => {
     setPhotoTarget(target);
     fileInputRef.current?.click();
   };
@@ -292,12 +289,13 @@ export default function ProfilePage() {
     }
 
     try {
-      if (photoTarget === "add") {
-        await uploadPhotoMutation.mutateAsync(file);
+      if (photoTarget === "avatar") {
+        await setAvatarMutation.mutateAsync(file);
+        setSuccessMessage("프로필 아이콘을 저장했습니다.");
       } else {
-        await replacePhotoMutation.mutateAsync({ index: photoTarget, file });
+        await setFacePhotoMutation.mutateAsync(file);
+        setSuccessMessage("실물 사진을 저장했습니다.");
       }
-      setSuccessMessage("프로필 사진을 저장했습니다.");
       setActionError(null);
     } catch (err) {
       setSuccessMessage(null);
@@ -307,10 +305,15 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePhotoDelete = async (index: number) => {
+  const handlePhotoDelete = async (target: "avatar" | "face") => {
     try {
-      await deletePhotoMutation.mutateAsync(index);
-      setSuccessMessage("프로필 사진을 삭제했습니다.");
+      if (target === "avatar") {
+        await setAvatarMutation.mutateAsync(null);
+        setSuccessMessage("프로필 아이콘을 지웠어요. 기본 아이콘이 보여요.");
+      } else {
+        await setFacePhotoMutation.mutateAsync(null);
+        setSuccessMessage("실물 사진을 지웠어요. 매칭 확인 때 프로필 아이콘이 보여요.");
+      }
       setActionError(null);
     } catch (err) {
       setSuccessMessage(null);
@@ -368,8 +371,12 @@ export default function ProfilePage() {
       ]
     : null;
 
-  const photoBusy =
-    uploadPhotoMutation.isPending || replacePhotoMutation.isPending || deletePhotoMutation.isPending;
+  const photoBusy = setAvatarMutation.isPending || setFacePhotoMutation.isPending;
+  // 내 실물 사진은 사진 변경 창을 열었을 때만 링크를 받아 온다
+  const faceUrlQuery = useFacePhotoUrlQuery(
+    profile?.facePhotoPath ? profile.userId : undefined,
+    photoManagerOpen,
+  );
 
   if (!mounted || (profileQuery.isPending && !profile)) {
     return (
@@ -434,7 +441,7 @@ export default function ProfilePage() {
                   <FiCamera className="text-[1.1rem]" />
                   사진 변경
                 </span>
-                <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#0d1124] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white">
+                <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--surface)] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-on-accent">
                   <FiCamera className="text-[0.85rem]" />
                 </span>
               </button>
@@ -493,7 +500,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => void handleSave()}
                     disabled={updateProfileMutation.isPending}
-                    className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white hover:brightness-110 disabled:opacity-60"
+                    className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-on-accent hover:brightness-110 disabled:opacity-60"
                   >
                     {updateProfileMutation.isPending ? "저장 중..." : "저장"}
                   </button>
@@ -502,7 +509,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleStartEditing}
-                  className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-white hover:brightness-110"
+                  className="h-8 rounded-[10px] px-3.5 text-[0.8rem] font-medium transition bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-on-accent hover:brightness-110"
                 >
                   수정
                 </button>
@@ -529,7 +536,7 @@ export default function ProfilePage() {
                       <div className="flex h-6 items-center gap-1.5">
                         {row.options ? (
                           <select
-                            className="w-36 appearance-none bg-transparent border-0 border-b border-dashed border-violet-400/50 px-0 py-0 text-[0.95rem] leading-6 text-zinc-100 focus:border-violet-300 focus:outline-none [&>option]:bg-[#141833]"
+                            className="w-36 appearance-none bg-transparent border-0 border-b border-dashed border-violet-400/50 px-0 py-0 text-[0.95rem] leading-6 text-zinc-100 focus:border-violet-300 focus:outline-none [&>option]:bg-surface"
                             value={editedProfile[editKey]}
                             onChange={(event) =>
                               setEditedProfile((prev) => ({ ...prev, [editKey]: event.target.value }))
@@ -572,7 +579,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={openRecovery}
-              className="flex h-8 items-center gap-1.5 rounded-[10px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-3.5 text-[0.8rem] font-medium text-white transition hover:brightness-110"
+              className="flex h-8 items-center gap-1.5 rounded-[10px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-3.5 text-[0.8rem] font-medium text-on-accent transition hover:brightness-110"
             >
               <FiRefreshCw className="text-[0.85rem]" />
               신뢰 회복
@@ -853,57 +860,28 @@ export default function ProfilePage() {
                 <FiX className="text-[1.3rem]" />
               </button>
             </div>
-            <p className="mt-1.5 text-[0.84rem] text-zinc-400">
-              최대 {MAX_PHOTOS}장까지 등록할 수 있어요. 첫 번째 사진이 대표 사진으로 보여요.
+            <p className="mt-1.5 break-keep text-[0.84rem] text-zinc-400">
+              프로필 아이콘은 채팅과 내 정보에 보이고, 실물 사진은 매칭을 확정할 때만 상대에게 보여요.
             </p>
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              {Array.from({ length: MAX_PHOTOS }, (_, index) => {
-                const photo = photos[index];
-
-                return photo ? (
-                  <div key={index} className="flex flex-col gap-2">
-                    <div className="relative aspect-[3/4] overflow-hidden rounded-[16px] border border-white/10">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo} alt={`프로필 사진 ${index + 1}`} className="h-full w-full object-cover" />
-                      {index === 0 && (
-                        <span className="absolute left-2 top-2 rounded-full bg-violet-500/90 px-2 py-0.5 text-[0.68rem] font-semibold text-white">
-                          대표
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => openPhotoPicker(index)}
-                        disabled={photoBusy}
-                        className="rounded-[10px] border border-white/10 py-1.5 text-[0.78rem] font-medium text-white transition hover:bg-white/8 disabled:opacity-50"
-                      >
-                        변경
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handlePhotoDelete(index)}
-                        disabled={photoBusy}
-                        className="rounded-[10px] border border-rose-400/20 py-1.5 text-[0.78rem] font-medium text-rose-200 transition hover:bg-rose-500/10 disabled:opacity-50"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => openPhotoPicker("add")}
-                    disabled={photoBusy || index !== photos.length}
-                    className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed border-white/15 bg-white/3 text-zinc-400 transition hover:text-zinc-200 disabled:opacity-40"
-                  >
-                    <FiPlus className="text-[1.4rem]" />
-                    <span className="text-[0.8rem]">사진 추가</span>
-                  </button>
-                );
-              })}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <PhotoSlotCard
+                label="프로필 아이콘"
+                hint="없으면 기본 아이콘"
+                photo={profile?.avatarUrl}
+                busy={photoBusy}
+                onPick={() => openPhotoPicker("avatar")}
+                onDelete={() => void handlePhotoDelete("avatar")}
+              />
+              <PhotoSlotCard
+                label="실물 사진"
+                hint="없으면 '실물 비공개'"
+                photo={faceUrlQuery.data ?? undefined}
+                loading={Boolean(profile?.facePhotoPath) && faceUrlQuery.isPending}
+                busy={photoBusy}
+                onPick={() => openPhotoPicker("face")}
+                onDelete={() => void handlePhotoDelete("face")}
+              />
             </div>
 
             {photoBusy && <p className="mt-4 text-center text-[0.84rem] text-violet-200">사진을 저장하는 중입니다...</p>}
@@ -913,6 +891,68 @@ export default function ProfilePage() {
 
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoFile} className="hidden" />
     </MainLayout>
+  );
+}
+
+// 사진 칸: 비어 있으면 + 로 올리고, 사진이 있으면 오른쪽 위 X 로 바로 지운다
+function PhotoSlotCard({
+  label,
+  hint,
+  photo,
+  loading = false,
+  busy,
+  onPick,
+  onDelete,
+}: {
+  label: string;
+  hint: string;
+  photo?: string;
+  loading?: boolean;
+  busy: boolean;
+  onPick: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <p className="text-[0.86rem] font-semibold text-white">{label}</p>
+        <p className="text-[0.74rem] text-zinc-500">{hint}</p>
+      </div>
+      <div
+        className={cx(
+          "relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[16px] border border-white/10 bg-white/3",
+          !photo && "border-dashed",
+        )}
+      >
+        {loading ? (
+          <Skeleton className="h-full w-full" />
+        ) : photo ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt={label} className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              aria-label={`${label} 삭제`}
+              className="keep-dark absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-black/85 disabled:opacity-50"
+            >
+              <FiX className="text-[1.05rem]" />
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onPick}
+            disabled={busy}
+            aria-label={`${label} 추가`}
+            className="flex h-full w-full items-center justify-center text-zinc-400 transition hover:text-zinc-200 disabled:opacity-40"
+          >
+            <FiPlus className="text-[1.8rem]" />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

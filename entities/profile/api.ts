@@ -3,6 +3,7 @@ import {
   buildProfile,
   extractStoragePath,
   getProfileRow,
+  facePhotoBucket,
   photoBucket,
   requireUser,
 } from "@/shared/lib/supabase/helpers";
@@ -65,105 +66,69 @@ export async function updateProfile(data: {
   return getProfile();
 }
 
-export async function uploadPhoto(file: File) {
-  const user = await requireUser();
-  const filePath = `${user.id}/${Date.now()}-${file.name}`;
-  const { error: uploadError } = await supabase.storage
-    .from(photoBucket)
-    .upload(filePath, file, { upsert: false });
-
-  if (uploadError) {
-    throw uploadError;
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(photoBucket).getPublicUrl(filePath);
-  const currentProfile = await getProfile();
-  const photos = [...(currentProfile.profile.photos ?? []), publicUrl];
-
-  const { error } = await supabase.from("profiles").upsert(
-    {
-      user_id: user.id,
-      photos,
-    },
-    { onConflict: "user_id" },
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  return { photos };
+function fileExtension(file: File) {
+  return file.name.split(".").pop()?.toLowerCase() || "jpg";
 }
 
-export async function deletePhoto(index: number) {
-  const user = await requireUser();
-  const currentProfile = await getProfile();
-  const photos = [...(currentProfile.profile.photos ?? [])];
-  const [deletedPhoto] = photos.splice(index, 1);
-
-  if (deletedPhoto) {
-    const { error: storageError } = await supabase.storage
-      .from(photoBucket)
-      .remove([extractStoragePath(deletedPhoto)]);
-
-    if (storageError) {
-      throw storageError;
-    }
-  }
-
-  const { error } = await supabase.from("profiles").upsert(
-    {
-      user_id: user.id,
-      photos,
-    },
-    { onConflict: "user_id" },
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  return { photos };
+async function uploadAvatarFile(userId: string, file: File) {
+  const filePath = `${userId}/avatar-${Date.now()}.${fileExtension(file)}`;
+  const { error } = await supabase.storage
+    .from(photoBucket)
+    .upload(filePath, file, { upsert: false, contentType: file.type });
+  if (error) throw error;
+  return supabase.storage.from(photoBucket).getPublicUrl(filePath).data.publicUrl;
 }
 
-export async function replacePhoto(payload: { index: number; file: File }) {
+async function uploadFaceFile(userId: string, file: File) {
+  const filePath = `${userId}/face-${Date.now()}.${fileExtension(file)}`;
+  const { error } = await supabase.storage
+    .from(facePhotoBucket)
+    .upload(filePath, file, { upsert: false, contentType: file.type });
+  if (error) throw error;
+  return filePath;
+}
+
+// 프로필 아이콘 바꾸기(file) / 지우기(null) → 지우면 기본 이미지가 보인다
+export async function setAvatar(file: File | null) {
   const user = await requireUser();
-  const currentProfile = await getProfile();
-  const photos = [...(currentProfile.profile.photos ?? [])];
-  const previous = photos[payload.index];
-  const extension = payload.file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const filePath = `${user.id}/${Date.now()}.${extension}`;
+  const previous = (await getProfileRow(user.id))?.avatar_url;
+  const avatarUrl = file ? await uploadAvatarFile(user.id, file) : null;
 
-  const { error: uploadError } = await supabase.storage
-    .from(photoBucket)
-    .upload(filePath, payload.file, { upsert: false, contentType: payload.file.type });
+  const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("user_id", user.id);
+  if (error) throw error;
 
-  if (uploadError) {
-    throw uploadError;
-  }
-
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(photoBucket).getPublicUrl(filePath);
-  photos[payload.index] = publicUrl;
-
-  const { error } = await supabase.from("profiles").upsert(
-    { user_id: user.id, photos },
-    { onConflict: "user_id" },
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  // 새 사진 저장이 끝난 뒤에 예전 파일을 지운다. 지우기에 실패해도 사진 변경은 끝난 상태다.
+  // 새 사진 저장이 끝난 뒤 예전 파일을 지운다. 실패해도 변경은 끝난 상태다.
   if (previous) {
     await supabase.storage.from(photoBucket).remove([extractStoragePath(previous)]);
   }
+}
 
-  return { photos };
+// 실물 사진 바꾸기(file) / 등록 안 함(null)
+export async function setFacePhoto(file: File | null) {
+  const user = await requireUser();
+  const previous = (await getProfileRow(user.id))?.face_photo_path;
+  const facePath = file ? await uploadFaceFile(user.id, file) : null;
+
+  const { error } = await supabase.from("profiles").update({ face_photo_path: facePath }).eq("user_id", user.id);
+  if (error) throw error;
+
+  if (previous) {
+    await supabase.storage.from(facePhotoBucket).remove([previous]);
+  }
+}
+
+// 실물 사진 보기용 링크(10분). 내 사진이거나, 매칭 확인 단계라 볼 수 있을 때만 만들어진다.
+export async function getFacePhotoUrl(userId: string) {
+  const row = await getProfileRow(userId);
+  if (!row?.face_photo_path) {
+    return null;
+  }
+
+  const { data, error } = await supabase.storage.from(facePhotoBucket).createSignedUrl(row.face_photo_path, 600);
+  if (error) {
+    return null;
+  }
+  return data.signedUrl;
 }
 
 // 신뢰 포인트로 신뢰 점수를 회복한다. 차감·증가는 DB 함수 하나에서 함께 처리된다.
@@ -186,32 +151,15 @@ export type OnboardingPayload = {
   height: string;
   mbti: string;
   purpose: string;
-  photosPrivate: boolean;
-  photoFiles: File[];
+  // 프로필 아이콘(선택) · 실물 사진(선택, '실물 등록 안 할래요'면 null)
+  avatarFile: File | null;
+  faceFile: File | null;
 };
 
 export async function completeOnboarding(data: OnboardingPayload) {
   const user = await requireUser();
-  const photos: string[] = [];
-
-  if (!data.photosPrivate) {
-    for (const [index, file] of data.photoFiles.entries()) {
-      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const filePath = `${user.id}/${Date.now()}-${index}.${extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from(photoBucket)
-        .upload(filePath, file, { upsert: false, contentType: file.type });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(photoBucket).getPublicUrl(filePath);
-      photos.push(publicUrl);
-    }
-  }
+  const avatarUrl = data.avatarFile ? await uploadAvatarFile(user.id, data.avatarFile) : null;
+  const facePath = data.faceFile ? await uploadFaceFile(user.id, data.faceFile) : null;
 
   const { error } = await supabase.from("profiles").upsert(
     {
@@ -221,8 +169,9 @@ export async function completeOnboarding(data: OnboardingPayload) {
       height: data.height,
       mbti: data.mbti,
       purpose: data.purpose,
-      photos_private: data.photosPrivate,
-      photos,
+      photos_private: !data.faceFile,
+      avatar_url: avatarUrl,
+      face_photo_path: facePath,
       onboarded_at: new Date().toISOString(),
     },
     { onConflict: "user_id" },

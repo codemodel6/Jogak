@@ -23,43 +23,61 @@
   --match-body-size: 0.96rem;
   --match-meta-size: 0.84rem;
   --match-pill-size: 0.8rem;
-  --background: #090b1b;
-  --foreground: #f7f7fb;
-  --card: #101427;
-  --card-foreground: #f5f5f5;
-  --popover: #11162c;
-  --popover-foreground: #f5f5f5;
-  --primary: #8b5cf6;
-  --primary-foreground: #f5f3ff;
-  --secondary: #171b33;
-  --secondary-foreground: #f5f5f5;
-  --muted: #13172a;
-  --muted-foreground: #a6adc8;
-  --accent: #312e81;
+  --background: #0b0b0d;
+  --foreground: #f5f5f7;
+  --card: #141417;
+  --card-foreground: #f5f5f7;
+  --popover: #18181c;
+  --popover-foreground: #f5f5f7;
+  --primary: #6f56ff;
+  --primary-foreground: #ffffff;
+  --secondary: #1b1b1f;
+  --secondary-foreground: #f5f5f7;
+  --muted: #18181c;
+  --muted-foreground: #a1a1aa;
+  --accent: #2a2350;
   --accent-foreground: #ede9fe;
   --destructive: #fb7185;
   --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.1);
   --input: transparent;
   --input-background: rgba(255, 255, 255, 0.04);
-  --switch-background: #4c4f70;
+  --switch-background: #3f3f46;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: rgba(139, 92, 246, 0.5);
-  --chart-1: #8b5cf6;
+  --ring: rgba(111, 86, 255, 0.5);
+  --chart-1: #6f56ff;
   --chart-2: #a78bfa;
   --chart-3: #818cf8;
   --chart-4: #22c55e;
   --chart-5: #4f46e5;
   --radius: 0.625rem;
-  --sidebar: #0e1326;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #8b5cf6;
-  --sidebar-primary-foreground: #f5f3ff;
-  --sidebar-accent: #171b33;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: rgba(139, 92, 246, 0.5);
+  --sidebar: #0e0e10;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #6f56ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b1b1f;
+  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: rgba(111, 86, 255, 0.5);
+
+  /* 화면 배경·패널 (다크 기본값, 라이트는 아래 :root.light) */
+  --app-bg: #0b0b0d;
+  --app-bg-end: #08080a;
+  --app-glow: rgba(111, 86, 255, 0.16);
+  --app-glow-2: rgba(111, 86, 255, 0.06);
+  --surface: #141417;
+  --surface-end: #111114;
+  --surface-soft: #1b1b1f;
+  --surface-soft-end: #161619;
+  --surface-input: #17171b;
+  --nav-bg: rgba(14, 14, 17, 0.97);
+  --bubble-other: #222227;
+  --avatar-from: #34343d;
+  --avatar-to: #1b1b20;
+  --accent-tint: rgba(111, 86, 255, 0.16);
+  --accent-tint-strong: rgba(111, 86, 255, 0.32);
+  --shadow-k: 1;
 }
 
 @media (max-width: 1279px) {
@@ -88,41 +106,120 @@
   }
 }
 
-.dark {
-  --background: #090b1b;
-  --foreground: #f7f7fb;
-  --card: #101427;
-  --card-foreground: #f5f5f5;
-  --popover: #11162c;
-  --popover-foreground: #f5f5f5;
-  --primary: #8b5cf6;
-  --primary-foreground: #f5f3ff;
-  --secondary: #171b33;
-  --secondary-foreground: #f5f5f5;
-  --muted: #13172a;
-  --muted-foreground: #a6adc8;
-  --accent: #312e81;
-  --accent-foreground: #ede9fe;
-  --destructive: #fb7185;
-  --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.12);
-  --input: transparent;
-  --ring: rgba(139, 92, 246, 0.5);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: #8b5cf6;
-  --chart-2: #a78bfa;
-  --chart-3: #818cf8;
-  --chart-4: #22c55e;
-  --chart-5: #4f46e5;
-  --sidebar: #0e1326;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #8b5cf6;
-  --sidebar-primary-foreground: #f5f3ff;
-  --sidebar-accent: #171b33;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: rgba(139, 92, 246, 0.5);
+
+/* 라이트 모드: html.light. 흰 글씨·회색 글씨를 짙은 색으로 뒤집어 기존 클래스를 그대로 쓴다 */
+:root.light {
+  color-scheme: light;
+  --background: #f6f5f8;
+  --foreground: #17151c;
+  --card: #ffffff;
+  --card-foreground: #17151c;
+  --popover: #ffffff;
+  --popover-foreground: #17151c;
+  --secondary: #f1eff5;
+  --secondary-foreground: #17151c;
+  --muted: #f1eff5;
+  --muted-foreground: #5d5967;
+  --accent: #ece8ff;
+  --accent-foreground: #3b1d8f;
+  --destructive: #e11d48;
+  --border: rgba(20, 10, 40, 0.1);
+  --input-background: rgba(20, 10, 40, 0.03);
+  --switch-background: #d4d2da;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #17151c;
+  --sidebar-accent: #f1eff5;
+  --sidebar-accent-foreground: #17151c;
+  --sidebar-border: rgba(20, 10, 40, 0.08);
+
+  --app-bg: #f6f5f8;
+  --app-bg-end: #f1eff6;
+  --app-glow: rgba(111, 86, 255, 0.09);
+  --app-glow-2: rgba(111, 86, 255, 0.04);
+  --surface: #ffffff;
+  --surface-end: #fdfcff;
+  --surface-soft: #f3f1f7;
+  --surface-soft-end: #efecf4;
+  --surface-input: #ffffff;
+  --nav-bg: rgba(255, 255, 255, 0.95);
+  --bubble-other: #ecebf1;
+  --avatar-from: #e6e2f0;
+  --avatar-to: #d3cde3;
+  --accent-tint: rgba(111, 86, 255, 0.1);
+  --accent-tint-strong: rgba(111, 86, 255, 0.18);
+  --shadow-k: 0.22;
+
+  --color-white: #17151c;
+  --color-zinc-100: #1c1b22;
+  --color-zinc-200: #2a2831;
+  --color-zinc-300: #3d3a46;
+  --color-zinc-400: #5d5967;
+  --color-zinc-500: #7a7684;
+  --color-zinc-600: #a29eab;
+  --color-zinc-700: #c9c6d0;
+  --color-zinc-800: #e2e0e7;
+  --color-zinc-900: #efeef2;
+  --color-violet-100: #3b1d8f;
+  --color-violet-200: #4a2bb0;
+  --color-violet-300: #5b3ee0;
+  --color-rose-100: #9f1239;
+  --color-rose-200: #be123c;
+  --color-rose-300: #e11d48;
+  --color-rose-950: #ffe4e6;
+  --color-emerald-100: #065f46;
+  --color-emerald-200: #047857;
+  --color-emerald-300: #059669;
+  --color-emerald-900: #a7f3d0;
+  --color-emerald-950: #d1fae5;
+  --color-amber-200: #b45309;
+  --color-amber-300: #d97706;
+  --color-red-200: #b91c1c;
+  --color-red-300: #dc2626;
+  --color-orange-100: #9a3412;
+  --color-orange-300: #c2410c;
+  --color-sky-200: #0369a1;
+  --color-cyan-200: #0e7490;
+}
+
+/* 라이트 모드에서도 어둡게 남길 곳(배너·보라 버튼·신뢰 카드): 다크 값을 되돌린다 */
+:root.light .keep-dark {
+  color-scheme: dark;
+  --foreground: #f5f5f7;
+  --muted-foreground: #a1a1aa;
+  --border: rgba(255, 255, 255, 0.1);
+  --surface: #141417;
+  --surface-end: #111114;
+  --surface-soft: #1b1b1f;
+  --surface-soft-end: #161619;
+  --bubble-other: #222227;
+  --avatar-from: #34343d;
+  --avatar-to: #1b1b20;
+  --shadow-k: 1;
+  --color-white: #fff;
+  --color-zinc-100: oklch(96.7% 0.001 286.375);
+  --color-zinc-200: oklch(92% 0.004 286.32);
+  --color-zinc-300: oklch(87.1% 0.006 286.286);
+  --color-zinc-400: oklch(70.5% 0.015 286.067);
+  --color-zinc-500: oklch(55.2% 0.016 285.938);
+  --color-zinc-600: oklch(44.2% 0.017 285.786);
+  --color-zinc-700: oklch(37% 0.013 285.805);
+  --color-zinc-800: oklch(27.4% 0.006 286.033);
+  --color-zinc-900: oklch(21% 0.006 285.885);
+  --color-violet-100: oklch(94.3% 0.029 294.588);
+  --color-violet-200: oklch(89.4% 0.057 293.283);
+  --color-violet-300: oklch(81.1% 0.111 293.571);
+  --color-rose-100: oklch(94.1% 0.03 12.58);
+  --color-rose-200: oklch(89.2% 0.058 10.001);
+  --color-rose-300: oklch(81% 0.117 11.638);
+  --color-emerald-100: oklch(95% 0.052 163.051);
+  --color-emerald-200: oklch(90.5% 0.093 164.15);
+  --color-emerald-300: oklch(84.5% 0.143 164.978);
+  --color-amber-200: oklch(92.4% 0.12 95.746);
+  --color-amber-300: oklch(87.9% 0.169 91.605);
+  --color-orange-100: oklch(95.4% 0.038 75.164);
+  --color-orange-300: oklch(83.7% 0.128 66.29);
+  --color-sky-200: oklch(90.1% 0.058 230.902);
+  --color-cyan-200: oklch(91.7% 0.08 205.041);
 }
 
 @theme inline {
@@ -168,6 +265,15 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-app: var(--app-bg);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-input: var(--surface-input);
+  --color-nav: var(--nav-bg);
+  --color-bubble: var(--bubble-other);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-tint-strong: var(--accent-tint-strong);
+  --color-on-accent: #ffffff;
 }
 
 @layer base {
@@ -180,13 +286,15 @@
     color-scheme: dark;
   }
 
+  :root.light {
+    color-scheme: light;
+  }
+
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at top left, rgba(123, 92, 255, 0.28), transparent 26rem),
-      radial-gradient(circle at 85% 20%, rgba(69, 208, 255, 0.12), transparent 20rem),
-      radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.16), transparent 24rem),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 28rem);
+      radial-gradient(circle at top left, var(--app-glow), transparent 26rem),
+      radial-gradient(circle at bottom right, var(--app-glow-2), transparent 24rem);
     background-attachment: fixed;
   }
 
@@ -237,9 +345,9 @@
   .app-frame {
     @apply min-h-screen text-foreground;
     background-image:
-      radial-gradient(circle at top left, rgba(123, 92, 255, 0.18), transparent 22rem),
-      radial-gradient(circle at top right, rgba(69, 208, 255, 0.08), transparent 18rem),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 20rem);
+      radial-gradient(circle at top left, var(--app-glow), transparent 22rem),
+      radial-gradient(circle at top right, var(--app-glow-2), transparent 18rem),
+      linear-gradient(180deg, var(--app-glow-2), transparent 20rem);
   }
 
   .gradient-divider-top,
@@ -249,53 +357,53 @@
 
   .gradient-divider-top {
     box-shadow:
-      0 -24px 56px rgba(0, 0, 0, 0.42),
-      0 -2px 12px rgba(0, 0, 0, 0.22),
+      0 -24px 56px rgba(0, 0, 0, calc(0.42 * var(--shadow-k))),
+      0 -2px 12px rgba(0, 0, 0, calc(0.22 * var(--shadow-k))),
       inset 0 14px 30px rgba(255, 255, 255, 0.02),
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 
   .gradient-divider-bottom {
     box-shadow:
-      0 24px 56px rgba(0, 0, 0, 0.42),
-      0 2px 12px rgba(0, 0, 0, 0.22),
+      0 24px 56px rgba(0, 0, 0, calc(0.42 * var(--shadow-k))),
+      0 2px 12px rgba(0, 0, 0, calc(0.22 * var(--shadow-k))),
       inset 0 -14px 30px rgba(255, 255, 255, 0.02),
       inset 0 -1px 0 rgba(255, 255, 255, 0.03);
   }
 
   .surface-panel {
-    @apply rounded-[2rem] p-8 shadow-2xl shadow-black/20;
-    background: linear-gradient(180deg, rgba(18, 22, 42, 0.98), rgba(10, 12, 24, 0.96));
+    @apply rounded-[2rem] p-8 shadow-2xl shadow-black/10;
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
     box-shadow:
-      0 30px 80px rgba(0, 0, 0, 0.44),
-      0 10px 28px rgba(0, 0, 0, 0.24),
+      0 30px 80px rgba(0, 0, 0, calc(0.44 * var(--shadow-k))),
+      0 10px 28px rgba(0, 0, 0, calc(0.24 * var(--shadow-k))),
       0 1px 0 rgba(255, 255, 255, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -22px 48px rgba(0, 0, 0, 0.3),
+      inset 0 -22px 48px rgba(0, 0, 0, calc(0.3 * var(--shadow-k))),
       inset 18px 0 32px rgba(255, 255, 255, 0.01),
       inset 0 0 0 1px rgba(129, 140, 248, 0.06);
   }
 
   .surface-panel-soft {
     @apply rounded-[1.5rem] p-4;
-    background: linear-gradient(180deg, rgba(26, 32, 58, 0.92), rgba(15, 18, 33, 0.9));
+    background: linear-gradient(180deg, var(--surface-soft), var(--surface-soft-end));
     box-shadow:
-      0 20px 42px rgba(0, 0, 0, 0.28),
-      0 8px 18px rgba(0, 0, 0, 0.16),
+      0 20px 42px rgba(0, 0, 0, calc(0.28 * var(--shadow-k))),
+      0 8px 18px rgba(0, 0, 0, calc(0.16 * var(--shadow-k))),
       0 1px 0 rgba(255, 255, 255, 0.025),
       inset 0 1px 0 rgba(255, 255, 255, 0.035),
-      inset 0 -16px 30px rgba(0, 0, 0, 0.22);
+      inset 0 -16px 30px rgba(0, 0, 0, calc(0.22 * var(--shadow-k)));
   }
 
   .surface-panel-compact {
-    @apply rounded-[2rem] p-6 shadow-xl shadow-black/20;
-    background: linear-gradient(180deg, rgba(18, 22, 42, 0.97), rgba(11, 14, 28, 0.95));
+    @apply rounded-[2rem] p-6 shadow-xl shadow-black/10;
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
     box-shadow:
-      0 24px 60px rgba(0, 0, 0, 0.36),
-      0 8px 20px rgba(0, 0, 0, 0.18),
+      0 24px 60px rgba(0, 0, 0, calc(0.36 * var(--shadow-k))),
+      0 8px 20px rgba(0, 0, 0, calc(0.18 * var(--shadow-k))),
       0 1px 0 rgba(255, 255, 255, 0.03),
       inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      inset 0 -18px 34px rgba(0, 0, 0, 0.24);
+      inset 0 -18px 34px rgba(0, 0, 0, calc(0.24 * var(--shadow-k)));
   }
 
   .surface-hover {
@@ -316,7 +424,7 @@
 
   .badge-accent {
     @apply rounded-full px-3 py-1 text-xs font-medium text-violet-100;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(79, 70, 229, 0.42));
+    background: var(--accent-tint-strong);
     border: 1px solid rgba(196, 181, 253, 0.24);
   }
 
@@ -325,13 +433,13 @@
   }
 
   .btn-primary {
-    @apply rounded-2xl px-4 py-3 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(99, 102, 241, 0.94) 65%, rgba(76, 29, 149, 0.96));
+    @apply rounded-2xl px-4 py-3 text-sm font-medium text-on-accent transition disabled:cursor-not-allowed disabled:opacity-60;
+    background: linear-gradient(135deg, #6f56ff, #7b50f3);
     box-shadow:
       0 18px 38px rgba(76, 29, 149, 0.34),
-      0 6px 14px rgba(0, 0, 0, 0.18),
+      0 6px 14px rgba(0, 0, 0, calc(0.18 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      inset 0 -10px 22px rgba(0, 0, 0, 0.16);
+      inset 0 -10px 22px rgba(0, 0, 0, calc(0.16 * var(--shadow-k)));
   }
 
   .btn-primary:hover {
@@ -339,17 +447,17 @@
       0 24px 48px rgba(76, 29, 149, 0.4),
       0 0 22px rgba(167, 139, 250, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.13),
-      inset 0 -12px 24px rgba(0, 0, 0, 0.24);
+      inset 0 -12px 24px rgba(0, 0, 0, calc(0.24 * var(--shadow-k)));
   }
 
   .btn-secondary {
     @apply rounded-2xl px-4 py-3 text-sm font-medium text-zinc-100 transition;
-    background: linear-gradient(180deg, rgba(39, 43, 77, 0.94), rgba(18, 22, 41, 0.92));
+    background: linear-gradient(180deg, var(--surface-soft), var(--surface-soft-end));
     box-shadow:
-      0 16px 34px rgba(0, 0, 0, 0.28),
-      0 6px 12px rgba(0, 0, 0, 0.14),
+      0 16px 34px rgba(0, 0, 0, calc(0.28 * var(--shadow-k))),
+      0 6px 12px rgba(0, 0, 0, calc(0.14 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -10px 20px rgba(0, 0, 0, 0.18);
+      inset 0 -10px 20px rgba(0, 0, 0, calc(0.18 * var(--shadow-k)));
   }
 
   .btn-secondary:hover {
@@ -358,22 +466,22 @@
 
   .btn-ghost {
     @apply rounded-full px-4 py-2 text-sm font-medium text-zinc-300 transition hover:text-violet-200;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.015));
+    background: linear-gradient(180deg, var(--surface-soft), var(--surface-soft-end));
     box-shadow:
-      0 14px 28px rgba(0, 0, 0, 0.18),
+      0 14px 28px rgba(0, 0, 0, calc(0.18 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -8px 16px rgba(0, 0, 0, 0.12);
+      inset 0 -8px 16px rgba(0, 0, 0, calc(0.12 * var(--shadow-k)));
   }
 
   .input-field,
   .textarea-field {
-    @apply mt-2 w-full rounded-2xl px-4 py-3 text-zinc-100 placeholder:text-zinc-500 transition focus:border-violet-400/60 focus:bg-black/60 focus:outline-none;
-    background: linear-gradient(180deg, rgba(22, 27, 49, 0.94), rgba(12, 15, 28, 0.92));
+    @apply mt-2 w-full rounded-2xl px-4 py-3 text-zinc-100 placeholder:text-zinc-500 transition focus:border-violet-400/60 focus:bg-surface-input focus:outline-none;
+    background: linear-gradient(180deg, var(--surface-soft), var(--surface-soft-end));
     border: 1px solid transparent;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      inset 0 -10px 22px rgba(0, 0, 0, 0.18),
-      0 12px 28px rgba(0, 0, 0, 0.16);
+      inset 0 -10px 22px rgba(0, 0, 0, calc(0.18 * var(--shadow-k))),
+      0 12px 28px rgba(0, 0, 0, calc(0.16 * var(--shadow-k)));
   }
 
   .input-field:disabled,
@@ -394,20 +502,20 @@
     @apply rounded-2xl px-4 py-3 text-sm;
     border: 1px solid transparent;
     box-shadow:
-      0 22px 40px rgba(0, 0, 0, 0.28),
-      0 8px 18px rgba(0, 0, 0, 0.14),
+      0 22px 40px rgba(0, 0, 0, calc(0.28 * var(--shadow-k))),
+      0 8px 18px rgba(0, 0, 0, calc(0.14 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      inset 0 -10px 20px rgba(0, 0, 0, 0.14);
+      inset 0 -10px 20px rgba(0, 0, 0, calc(0.14 * var(--shadow-k)));
   }
 
   .alert-error {
     @apply text-rose-100;
-    background: linear-gradient(180deg, rgba(91, 33, 64, 0.78), rgba(55, 15, 44, 0.74));
+    background: rgba(244, 63, 94, 0.14);
   }
 
   .alert-success {
     @apply text-emerald-100;
-    background: linear-gradient(180deg, rgba(8, 63, 47, 0.82), rgba(6, 37, 30, 0.8));
+    background: rgba(16, 185, 129, 0.14);
   }
 
   .modal-overlay {
@@ -416,12 +524,12 @@
 
   .modal-card {
     @apply w-full max-w-md rounded-[2rem] p-7;
-    background: linear-gradient(180deg, rgba(18, 22, 42, 0.99), rgba(10, 12, 24, 0.98));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
     box-shadow:
-      0 36px 96px rgba(0, 0, 0, 0.52),
-      0 14px 32px rgba(0, 0, 0, 0.22),
+      0 36px 96px rgba(0, 0, 0, calc(0.52 * var(--shadow-k))),
+      0 14px 32px rgba(0, 0, 0, calc(0.22 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 -22px 46px rgba(0, 0, 0, 0.3);
+      inset 0 -22px 46px rgba(0, 0, 0, calc(0.3 * var(--shadow-k)));
   }
 
   .modal-title {
@@ -435,22 +543,22 @@
   .chat-page-bg {
     @apply min-h-screen text-white;
     background-image:
-      radial-gradient(circle at top left, rgba(85, 63, 201, 0.2), transparent 22rem),
-      radial-gradient(circle at top right, rgba(39, 58, 135, 0.12), transparent 18rem),
-      linear-gradient(180deg, #050917, #040814);
+      radial-gradient(circle at top left, var(--app-glow), transparent 22rem),
+      radial-gradient(circle at top right, var(--app-glow-2), transparent 18rem),
+      linear-gradient(180deg, var(--app-bg), var(--app-bg-end));
   }
 
   .chat-panel {
     @apply rounded-[1.5rem] border border-white/7;
-    background: linear-gradient(180deg, rgba(11, 15, 31, 0.98), rgba(8, 12, 25, 0.96));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
     box-shadow:
-      0 22px 46px rgba(0, 0, 0, 0.28),
+      0 22px 46px rgba(0, 0, 0, calc(0.28 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .chat-panel-soft {
     @apply rounded-[1.25rem] border border-white/6;
-    background: linear-gradient(180deg, rgba(18, 24, 45, 0.96), rgba(12, 16, 31, 0.94));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
   }
 
   .chat-tab {
@@ -467,31 +575,30 @@
   }
 
   .chat-list-item-active {
-    background: linear-gradient(135deg, rgba(72, 50, 165, 0.78), rgba(29, 25, 68, 0.82));
-    border-color: rgba(139, 92, 246, 0.18);
-    box-shadow: 0 16px 28px rgba(38, 25, 104, 0.22);
+    background: var(--accent-tint-strong);
+    border-color: rgba(111, 86, 255, 0.24);
   }
 
   .chat-pill {
     @apply rounded-full border border-white/8 px-3 py-1 font-medium text-zinc-300;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in oklab, var(--color-white) 4%, transparent);
     font-size: var(--chat-pill-size);
   }
 
   .chat-bubble-other {
-    @apply rounded-[1.35rem] bg-[rgba(24,29,49,0.96)] px-4 py-3 leading-7 text-zinc-100 shadow-[0_10px_24px_rgba(0,0,0,0.18)];
+    @apply rounded-[1.35rem] bg-bubble px-4 py-3 leading-7 text-zinc-100 shadow-[0_10px_24px_rgba(0,0,0,0.12)];
     font-size: var(--chat-body-size);
   }
 
   .chat-bubble-mine {
-    @apply rounded-[1.35rem] px-4 py-3 leading-7 text-white shadow-[0_14px_30px_rgba(79,59,196,0.28)];
+    @apply rounded-[1.35rem] px-4 py-3 leading-7 text-on-accent shadow-[0_14px_30px_rgba(79,59,196,0.28)];
     background: linear-gradient(135deg, rgba(93, 68, 234, 0.98), rgba(114, 76, 240, 0.96));
     font-size: var(--chat-body-size);
   }
 
   .chat-input-shell {
     @apply rounded-[1.1rem] border border-white/7;
-    background: linear-gradient(180deg, rgba(16, 20, 38, 0.98), rgba(11, 15, 28, 0.96));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
   }
 
   .chat-brand-title {
@@ -537,37 +644,37 @@
   .match-page-bg {
     @apply min-h-screen text-white;
     background-image:
-      radial-gradient(circle at top left, rgba(72, 54, 184, 0.22), transparent 22rem),
-      radial-gradient(circle at top right, rgba(28, 42, 112, 0.14), transparent 18rem),
-      linear-gradient(180deg, #050917, #040814);
+      radial-gradient(circle at top left, var(--app-glow), transparent 22rem),
+      radial-gradient(circle at top right, var(--app-glow-2), transparent 18rem),
+      linear-gradient(180deg, var(--app-bg), var(--app-bg-end));
   }
 
   .match-panel {
     @apply rounded-[1.35rem] border border-white/7;
-    background: linear-gradient(180deg, rgba(10, 15, 31, 0.98), rgba(8, 12, 25, 0.96));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
     box-shadow:
-      0 22px 46px rgba(0, 0, 0, 0.24),
+      0 22px 46px rgba(0, 0, 0, calc(0.24 * var(--shadow-k))),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .match-soft-panel {
     @apply rounded-[1.35rem] border border-white/7;
-    background: linear-gradient(180deg, rgba(18, 24, 47, 0.98), rgba(11, 16, 30, 0.96));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
   }
 
   .match-search-shell {
     @apply rounded-[0.95rem] border border-white/7;
-    background: linear-gradient(180deg, rgba(12, 18, 35, 0.98), rgba(9, 14, 27, 0.96));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
   }
 
   .match-filter-box {
-    @apply rounded-[0.95rem] border border-white/8 bg-[rgba(10,15,30,0.92)] px-4 py-3 text-left;
+    @apply rounded-[0.95rem] border border-white/8 bg-surface px-4 py-3 text-left;
   }
 
   .match-filter-label {
     font-size: var(--match-meta-size);
     line-height: 1.2;
-    color: rgb(161 161 170);
+    color: var(--color-zinc-400);
   }
 
   .match-tab {
@@ -610,7 +717,7 @@
 
   .match-pill {
     @apply rounded-full border border-white/7 px-3 py-1 font-medium text-zinc-200;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in oklab, var(--color-white) 4%, transparent);
     font-size: var(--match-pill-size);
     line-height: 1.2;
   }
@@ -679,7 +786,7 @@
 
   .desktop-sidebar {
     @apply border-r border-white/7 px-4 py-5;
-    background: linear-gradient(180deg, rgba(9, 13, 31, 0.98), rgba(7, 10, 24, 0.98));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
   }
 
   .desktop-brand {
@@ -687,7 +794,7 @@
   }
 
   .desktop-brand-badge {
-    @apply flex h-10 w-10 items-center justify-center rounded-[14px] text-white;
+    @apply flex h-10 w-10 items-center justify-center rounded-[14px] text-on-accent;
     background: linear-gradient(135deg, #6d4dff, #4f46e5);
     box-shadow: 0 10px 26px rgba(95, 66, 255, 0.32);
   }
@@ -705,7 +812,7 @@
   }
 
   .desktop-nav-item-active {
-    @apply text-white;
+    @apply text-on-accent;
     background: linear-gradient(135deg, rgba(110, 76, 255, 0.92), rgba(76, 57, 183, 0.84));
     box-shadow: 0 16px 28px rgba(66, 41, 160, 0.28);
   }
@@ -756,13 +863,13 @@
 
   .desktop-panel {
     @apply rounded-[20px] border border-white/7 px-6 py-5;
-    background: linear-gradient(180deg, rgba(10, 15, 31, 0.98), rgba(8, 12, 26, 0.96));
-    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.25);
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
+    box-shadow: 0 24px 56px rgba(0, 0, 0, calc(0.25 * var(--shadow-k)));
   }
 
   .desktop-side-panel {
     @apply rounded-[18px] border border-white/7 px-6 py-5;
-    background: linear-gradient(180deg, rgba(14, 19, 38, 0.98), rgba(11, 16, 31, 0.96));
+    background: linear-gradient(180deg, var(--surface), var(--surface-end));
   }
 
   .desktop-accent-panel {

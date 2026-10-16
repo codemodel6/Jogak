@@ -31,33 +31,31 @@ export function useUpdateProfileMutation() {
   });
 }
 
-export function useUploadPhotoMutation() {
+export function useSetAvatarMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.uploadPhoto,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
+    mutationFn: api.setAvatar,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
   });
 }
 
-export function useDeletePhotoMutation() {
+export function useSetFacePhotoMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.deletePhoto,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
+    mutationFn: api.setFacePhoto,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
   });
 }
 
-export function useReplacePhotoMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: api.replacePhoto,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
+// 실물 사진 링크: 권한이 없으면 null (아이콘·기본 이미지로 대신 보여 준다)
+export function useFacePhotoUrlQuery(userId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [...profileKeys.all, "face", userId],
+    queryFn: () => api.getFacePhotoUrl(userId as string),
+    enabled: enabled && Boolean(userId),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

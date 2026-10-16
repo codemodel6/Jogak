@@ -2,12 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { FiAlertTriangle, FiBell, FiChevronRight, FiFileText, FiHeart, FiHome, FiMessageCircle, FiUser } from "react-icons/fi";
+import { useEffect, type ReactNode } from "react";
+import { FiAlertTriangle, FiChevronRight, FiFileText, FiHeart, FiHome, FiMessageCircle, FiUser } from "react-icons/fi";
 
 import { useMyPendingPenaltiesQuery } from "@/entities/match/hooks";
 import { useProfileQuery } from "@/entities/profile/hooks";
+import { useDailyCheckIn } from "@/entities/wallet/hooks";
+import NotificationBell from "@/features/notification/notification-bell";
 import { useOnlineUsers } from "@/shared/lib/presence/online-users";
+import { syncPushSubscription } from "@/shared/lib/push/push";
+import ThemeToggle from "@/shared/ui/theme-toggle";
 
 export type MainNavKey = "home" | "matching" | "chats" | "notices" | "profile";
 
@@ -62,11 +66,17 @@ export default function MainLayout({
   // 상대가 "못 만났어요"를 누르면 1시간 안에 조치해야 하므로 어느 화면에서든 알린다
   const penaltiesQuery = useMyPendingPenaltiesQuery(profile?.userId, true);
   const pendingPenalty = penaltiesQuery.data?.penalties[0];
-  const pendingCount = penaltiesQuery.data?.penalties.length ?? 0;
+  // 하루 한 번 출석 체크 (7일 연속마다 보너스 매칭권)
+  useDailyCheckIn(profile?.userId);
+
+  // 알림을 허용한 기기는 들어올 때마다 구독을 다시 저장한다 (계정 전환·구독 만료 대비)
+  useEffect(() => {
+    if (profile?.userId) void syncPushSubscription().catch(() => undefined);
+  }, [profile?.userId]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(74,51,181,0.24),transparent_22%),radial-gradient(circle_at_top_right,rgba(41,16,109,0.14),transparent_18%),linear-gradient(180deg,#070b1c,#040814)] text-white xl:grid xl:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="xl:sticky xl:top-0 xl:h-screen xl:border-r xl:border-white/7 xl:bg-[linear-gradient(180deg,rgba(9,13,31,0.98),rgba(7,10,24,0.98))] xl:px-4 xl:py-5">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,var(--app-glow),transparent_22%),radial-gradient(circle_at_top_right,var(--app-glow-2),transparent_18%),linear-gradient(180deg,var(--app-bg),var(--app-bg-end))] text-white xl:grid xl:grid-cols-[220px_minmax(0,1fr)]">
+      <aside className="xl:sticky xl:top-0 xl:h-screen xl:border-r xl:border-white/7 xl:bg-[var(--sidebar)] xl:px-4 xl:py-5">
         <Link href="/home" className="desktop-brand hidden xl:flex">
           <Image
             src="/icons/icon-192.png"
@@ -80,7 +90,7 @@ export default function MainLayout({
 
         <nav
           className={cx(
-            "fixed inset-x-0 bottom-0 z-[90] grid grid-cols-5 gap-1 border-t border-white/8 bg-[linear-gradient(180deg,rgba(9,13,29,0.98),rgba(7,10,22,1))] px-3 py-1.5 backdrop-blur-xl",
+            "fixed inset-x-0 bottom-0 z-[90] grid grid-cols-5 gap-1 border-t border-white/8 bg-nav px-3 py-1.5 backdrop-blur-xl",
             "xl:static xl:z-auto xl:mt-7 xl:block xl:space-y-2 xl:border-0 xl:bg-none xl:p-0 xl:backdrop-blur-none",
             hideMobileNav && "hidden",
           )}
@@ -97,7 +107,7 @@ export default function MainLayout({
                   "flex flex-col items-center justify-center gap-1 rounded-[16px] py-1 font-medium transition",
                   "xl:flex-row xl:justify-start xl:gap-4 xl:px-4 xl:py-3",
                   isActive
-                    ? "text-[#8a5dff] xl:bg-[linear-gradient(135deg,rgba(110,76,255,0.92),rgba(76,57,183,0.84))] xl:text-white xl:shadow-[0_16px_28px_rgba(66,41,160,0.28)]"
+                    ? "text-[#7b5cff] xl:bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] xl:text-on-accent xl:shadow-[0_16px_28px_rgba(66,41,160,0.24)]"
                     : "text-zinc-400 xl:text-zinc-300 xl:hover:bg-white/4 xl:hover:text-white",
                 )}
               >
@@ -141,17 +151,10 @@ export default function MainLayout({
           </div>
           <div className="flex shrink-0 items-center gap-4 xl:gap-5">
             {headerActions}
-            <div className="relative">
-              <FiBell className="text-[1.5rem] text-white" />
-              {/* 알림 개수: 지금은 나에게 걸린 감점 예정 건수 */}
-              {pendingCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#6f56ff] px-1 text-[0.68rem] font-semibold text-white">
-                  {pendingCount}
-                </span>
-              )}
-            </div>
+            <ThemeToggle className="-mx-1.5" />
+            <NotificationBell userId={profile?.userId} />
             <Link href="/profile" className="flex items-center gap-3">
-              <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#3c2e7f,#171c35)] xl:h-11 xl:w-11">
+              <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,var(--avatar-from),var(--avatar-to))] xl:h-11 xl:w-11">
                 {profilePhoto && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img alt="" src={profilePhoto} className="h-full w-full object-cover" />

@@ -45,8 +45,9 @@ export const TRUST_GRADES = [
     maxTop: 5,
     icon: PiSketchLogoFill,
     // 흑요석 같은 검정 바탕 + 은은한 오로라 테두리, 보석은 무지갯빛 그라데이션(BLACK_GEM_GRADIENT_ID)으로 칠한다.
+    // 글자는 다크에서 은빛, 라이트에서 흑요석빛 그라데이션이다.
     className:
-      "bg-[linear-gradient(100deg,#ffffff,#d9d3f2_35%,#9a93b8_60%,#f4f1ff)] bg-clip-text text-transparent",
+      "bg-[linear-gradient(100deg,#ffffff,#d9d3f2_35%,#9a93b8_60%,#f4f1ff)] [.light_&]:bg-[linear-gradient(100deg,#17151c,#4b4366_40%,#7a6cb4_70%,#17151c)] bg-clip-text text-transparent",
     emblemClassName:
       "bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.22),transparent_38%),radial-gradient(circle_at_75%_85%,rgba(124,92,255,0.35),transparent_45%),linear-gradient(150deg,#2a2638,#0b0a12_55%,#000)] shadow-[0_0_0_1.5px_rgba(214,206,255,0.55),0_0_28px_rgba(139,92,246,0.45),inset_0_0_16px_rgba(167,139,250,0.3)]",
     iconClassName: "[&_path]:fill-[url(#black-gem-gradient)]",

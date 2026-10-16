@@ -19,7 +19,7 @@ export function useShareLocationMutation() {
 
   return useMutation({
     mutationFn: api.shareLocation,
-    onSuccess: async (_, variables) => {
+    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
         queryClient.invalidateQueries({ queryKey: locationKeys.all }),

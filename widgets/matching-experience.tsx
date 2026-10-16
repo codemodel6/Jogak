@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { LuArrowDownUp } from "react-icons/lu";
-import { FiEdit3, FiHeart, FiMessageCircle, FiSearch, FiStar, FiUsers, FiX } from "react-icons/fi";
+import { FiCamera, FiCameraOff, FiEdit3, FiHeart, FiMessageCircle, FiSearch, FiStar, FiTrendingUp, FiUsers, FiX } from "react-icons/fi";
 
-import { useMatchStatsQuery, useRequestChatMutation, useChatsQuery } from "@/entities/chat/hooks";
-import type { Post } from "@/entities/post";
-import { usePostsQuery } from "@/entities/post/hooks";
+import { useMatchStatsQuery, useStartPostChatMutation, useChatsQuery } from "@/entities/chat/hooks";
+import { isBoosted, type Post } from "@/entities/post";
+import { useBoostPostMutation, usePostsQuery } from "@/entities/post/hooks";
 import { useProfileQuery } from "@/entities/profile/hooks";
+import { useWalletQuery } from "@/entities/wallet/hooks";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
+import BoostSheet from "@/features/match/boost-sheet";
+import WalletBar from "@/features/wallet/wallet-bar";
 import { useOnlineUsers } from "@/shared/lib/presence/online-users";
 import Skeleton from "@/shared/ui/skeleton";
 import MainLayout from "@/widgets/main-layout";
@@ -24,9 +27,8 @@ type MatchCardData = Post;
 
 const matchTabs = [
   { key: "all", label: "전체" },
-  { key: "new", label: "새로운 글" },
   { key: "saved", label: "찜한 글" },
-  { key: "requested", label: "요청한 글" },
+  { key: "mine", label: "내가 쓴 글" },
   { key: "chatting", label: "대화 중" },
 ] as const;
 
@@ -69,7 +71,6 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"latest" | "accuracy">("latest");
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-  const [requestedIds, setRequestedIds] = useState<string[]>([]);
   const [matchingEnabled, setMatchingEnabled] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
@@ -80,7 +81,14 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
   const profileQuery = useProfileQuery(queryEnabled);
   const chatsQuery = useChatsQuery(queryEnabled);
   const matchStatsQuery = useMatchStatsQuery(queryEnabled);
-  const requestChatMutation = useRequestChatMutation();
+  const requestChatMutation = useStartPostChatMutation();
+  const boostMutation = useBoostPostMutation();
+  const walletQuery = useWalletQuery(queryEnabled);
+  const wallet = walletQuery.data;
+  // 사진 필터: 실물 사진을 등록한 사람(공개) / 안 한 사람(비공개)
+  const [photoFilter, setPhotoFilter] = useState<"all" | "public" | "private">("all");
+  const [boostCard, setBoostCard] = useState<MatchCardData | null>(null);
+  const [boostError, setBoostError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated === false) {
@@ -119,7 +127,8 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
   );
   const postsLoading = !mounted || isAuthenticated === undefined || postsQuery.isPending;
   const sourcePosts: MatchCardData[] = realPosts;
-  const chattingNames = chats.map((chat) => chat.otherUser.name);
+  const chattingPostIds = new Set(chats.map((chat) => chat.postId).filter(Boolean));
+  const chattingNames = chats.filter((chat) => !chat.postId).map((chat) => chat.otherUser.name);
 
   const keyword = search.trim().replace(/^#+/, "").replace(/\s+/g, "").toLowerCase();
   const displayedCards = sourcePosts
@@ -128,21 +137,24 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
       isMine: Boolean(currentUserId) && post.userId === currentUserId,
       relativeTime: formatRelativeLabel(post.createdAt, baseNow),
       isNew: baseNow - new Date(post.createdAt).getTime() < 24 * 60 * 60 * 1000,
+      boosted: isBoosted(post, baseNow),
       score: tagScore(post.tags, keyword),
     }))
     .filter((card) => {
       if (keyword && card.score === 0) return false;
       if (selectedTag && !card.tags.includes(selectedTag)) return false;
-      if (activeTab === "new") return card.isNew;
+      if (photoFilter === "public" && !card.authorHasFace) return false;
+      if (photoFilter === "private" && card.authorHasFace) return false;
       if (activeTab === "saved") return bookmarkedIds.includes(card.postId);
-      if (activeTab === "requested") return requestedIds.includes(card.postId);
-      if (activeTab === "chatting") return chattingNames.includes(card.userName);
+      if (activeTab === "mine") return card.isMine;
+      if (activeTab === "chatting") return chattingPostIds.has(card.postId) || chattingNames.includes(card.userName);
       return true;
     })
-    // 기본은 최신순, "정확" 정렬이면 태그 일치 점수가 높은 글부터(같으면 최신순)
+    // 상단 노출 중인 글이 먼저. 그다음 기본은 최신순, "정확" 정렬이면 태그 일치 점수가 높은 글부터(같으면 최신순)
     .sort((a, b) => {
       const byDate = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      return sortOrder === "accuracy" ? b.score - a.score || byDate : byDate;
+      const byBoost = Number(b.boosted) - Number(a.boosted);
+      return byBoost || (sortOrder === "accuracy" ? b.score - a.score || byDate : byDate);
     });
 
   const detailCard = displayedCards.find((card) => card.postId === detailPostId) ?? null;
@@ -155,21 +167,35 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
     );
   };
 
-  // 대화하기: 상대와의 1:1 채팅방을 열고(없으면 만들고) 바로 그 방으로 이동한다
+  // 대화하기: 이 글로 이미 대화 중이면 그 방으로, 아니면 새 방을 열어 바로 이동한다(무료. 매칭권은 매칭 요청 때)
   const handleRequestChat = async (card: MatchCardData) => {
     if (!card.userId) {
       return;
     }
 
+    const existing = chats.find((chat) => chat.postId === card.postId);
+    if (existing) {
+      router.push(`/chat/${existing.chatId}`);
+      return;
+    }
+
     try {
-      const response = await requestChatMutation.mutateAsync(card.userId);
-      setRequestedIds((current) =>
-        current.includes(card.postId) ? current : [...current, card.postId],
-      );
+      const response = await requestChatMutation.mutateAsync(card.postId);
       setActionError(null);
       router.push(`/chat/${response.chatId}`);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "대화 요청에 실패했습니다.");
+      setActionError(err instanceof Error ? err.message : "대화를 시작하지 못했어요.");
+    }
+  };
+
+  const confirmBoost = async () => {
+    if (!boostCard) return;
+
+    try {
+      await boostMutation.mutateAsync(boostCard.postId);
+      setBoostCard(null);
+    } catch (err) {
+      setBoostError(err instanceof Error ? err.message : "상단 노출에 실패했어요.");
     }
   };
 
@@ -187,7 +213,7 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
       type="button"
       onClick={handleMatchingActivation}
       aria-label="매칭 활성화"
-      className="flex items-center gap-3 rounded-[16px] border border-white/7 bg-[rgba(16,22,42,0.9)] px-3 py-2 sm:px-4 sm:py-2.5"
+      className="flex items-center gap-3 rounded-[16px] border border-white/7 bg-surface px-3 py-2 sm:px-4 sm:py-2.5"
     >
       <span className="hidden text-[0.95rem] font-medium text-white sm:inline">매칭 활성화</span>
       <span
@@ -198,7 +224,7 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
       >
         <span
           className={cx(
-            "flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#6f56ff] transition",
+            "flex h-5 w-5 items-center justify-center rounded-full bg-[#fff] text-[#6f56ff] transition",
             matchingEnabled ? "translate-x-4" : "translate-x-0",
           )}
         >
@@ -217,6 +243,7 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
     >
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
         <main className="flex min-w-0 flex-col gap-4">
+          <WalletBar wallet={wallet} />
           {/* 필터: 탭 · 검색 · 태그 */}
           <section className="desktop-panel space-y-3.5 px-4 py-4 md:px-5">
             <div className="flex items-center gap-2">
@@ -244,7 +271,7 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
                   onClick={() => setActiveTab(tab.key)}
                   className={cx(
                     "shrink-0 rounded-full px-3.5 py-1.5 text-[0.84rem] font-medium transition",
-                    activeTab === tab.key ? "bg-white text-[#14122b]" : "bg-white/5 text-zinc-300 hover:bg-white/10",
+                    activeTab === tab.key ? "bg-foreground text-background" : "bg-white/5 text-zinc-300 hover:bg-white/10",
                   )}
                 >
                   {tab.label}
@@ -262,6 +289,29 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
             </button>
             </div>
 
+            {/* 사진 공개 여부 필터 */}
+            <div className="flex items-center gap-1.5">
+              {([
+                { key: "all", label: "사진 전체", icon: null },
+                { key: "public", label: "사진 공개", icon: FiCamera },
+                { key: "private", label: "사진 비공개", icon: FiCameraOff },
+              ] as const).map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setPhotoFilter(item.key)}
+                  className={cx(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1 text-[0.8rem] font-medium transition",
+                    photoFilter === item.key
+                      ? "border-violet-400/60 bg-violet-500/20 text-white"
+                      : "border-white/8 text-zinc-400 hover:border-white/20 hover:text-zinc-200",
+                  )}
+                >
+                  {item.icon && <item.icon className="text-[0.85rem]" />}
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </section>
 
           <section className="space-y-3">
@@ -304,7 +354,10 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
                       setDetailPostId(card.postId);
                     }
                   }}
-                  className="match-panel group relative flex cursor-pointer items-stretch gap-3.5 overflow-hidden p-3 transition hover:border-violet-400/25 focus-visible:outline-2 focus-visible:outline-violet-400 md:gap-4 md:p-3.5"
+                  className={cx(
+                    "match-panel group relative flex cursor-pointer items-stretch gap-3.5 overflow-hidden p-3 transition hover:border-violet-400/25 focus-visible:outline-2 focus-visible:outline-violet-400 md:gap-4 md:p-3.5",
+                    card.boosted && "border-violet-400/45 bg-accent-tint",
+                  )}
                 >
                   {/* 왼쪽 강조선: 새 글이면 보라색 */}
                   <span
@@ -322,10 +375,16 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
                     ) : (
                       <Image src="/icons/icon-192.png" alt="" fill sizes="84px" className="object-cover transition duration-300 group-hover:scale-105" />
                     )}
-                    {card.isNew && (
-                      <span className="absolute left-1 top-1 rounded-md bg-[#6f56ff] px-1.5 py-[1px] text-[0.62rem] font-bold tracking-wide text-white shadow">
-                        NEW
+                    {card.boosted ? (
+                      <span className="absolute left-1 top-1 flex items-center gap-0.5 rounded-md bg-[linear-gradient(135deg,#f59e0b,#ef4444)] px-1.5 py-[1px] text-[0.62rem] font-bold tracking-wide text-on-accent shadow">
+                        <FiTrendingUp /> UP
                       </span>
+                    ) : (
+                      card.isNew && (
+                        <span className="absolute left-1 top-1 rounded-md bg-[#6f56ff] px-1.5 py-[1px] text-[0.62rem] font-bold tracking-wide text-on-accent shadow">
+                          NEW
+                        </span>
+                      )
                     )}
                   </div>
 
@@ -383,6 +442,26 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
                     >
                       <FiHeart className={cx("text-[1rem]", bookmarkedIds.includes(card.postId) && "fill-current text-violet-300")} />
                     </button>
+                    {card.isMine && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setBoostError(null);
+                          setBoostCard(card);
+                        }}
+                        aria-label="상단 노출"
+                        className={cx(
+                          "flex h-9 items-center gap-1.5 rounded-[11px] px-2.5 text-[0.8rem] font-semibold transition sm:px-3",
+                          card.boosted
+                            ? "border border-violet-400/40 text-violet-300 hover:bg-accent-tint"
+                            : "border border-white/12 text-zinc-200 hover:bg-white/6",
+                        )}
+                      >
+                        <FiTrendingUp className="text-[0.95rem]" />
+                        <span className="hidden sm:inline">{card.boosted ? "노출 중" : "상단 노출"}</span>
+                      </button>
+                    )}
                     {!card.isMine && (
                       <button
                         type="button"
@@ -392,7 +471,7 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
                         }}
                         disabled={requestChatMutation.isPending || loading}
                         aria-label="대화하기"
-                        className="flex h-9 items-center gap-1.5 rounded-[11px] bg-[linear-gradient(135deg,rgba(111,86,255,0.92),rgba(82,58,207,0.92))] px-2.5 text-[0.82rem] font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 sm:px-3.5"
+                        className="flex h-9 items-center gap-1.5 rounded-[11px] bg-[linear-gradient(135deg,rgba(111,86,255,0.92),rgba(82,58,207,0.92))] px-2.5 text-[0.82rem] font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 sm:px-3.5"
                       >
                         <FiMessageCircle className="text-[0.95rem]" />
                         <span className="hidden sm:inline">대화하기</span>
@@ -409,7 +488,7 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
             <Link
               href="/create-post"
               aria-label="글쓰기"
-              className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] right-4 z-[95] flex h-14 w-14 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#7b5cff,#5c3df0)] text-white shadow-[0_12px_28px_rgba(92,61,240,0.45)] ring-1 ring-white/15 transition hover:brightness-110 active:scale-95 xl:static xl:h-12 xl:w-auto xl:px-5"
+              className="fixed bottom-[calc(76px+env(safe-area-inset-bottom))] right-4 z-[95] flex h-14 w-14 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#7b5cff,#5c3df0)] text-on-accent shadow-[0_12px_28px_rgba(92,61,240,0.45)] ring-1 ring-white/15 transition hover:brightness-110 active:scale-95 xl:static xl:h-12 xl:w-auto xl:px-5"
             >
               <FiEdit3 className="text-[1.3rem] xl:text-[1.05rem]" />
               <span className="hidden text-[0.92rem] font-semibold xl:inline">글쓰기</span>
@@ -446,6 +525,18 @@ export default function MatchingExperience({ mobileView = "list" }: MatchExperie
           onBookmark={() => handleBookmark(detailCard.postId)}
           onChat={() => void handleRequestChat(detailCard)}
           onClose={() => setDetailPostId(null)}
+        />
+      )}
+
+      {boostCard && (
+        <BoostSheet
+          postTitle={boostCard.title}
+          points={wallet?.points}
+          boostedUntil={posts.find((post) => post.postId === boostCard.postId)?.boostedUntil}
+          pending={boostMutation.isPending}
+          error={boostError}
+          onConfirm={() => void confirmBoost()}
+          onClose={() => setBoostCard(null)}
         />
       )}
 
@@ -501,7 +592,7 @@ function PostDetailModal({ card, bookmarked, chatDisabled, onBookmark, onChat, o
           ) : (
             <Image src="/icons/icon-192.png" alt="" fill sizes="520px" className="object-cover opacity-90" />
           )}
-          <div className="absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(180deg,transparent,rgba(8,12,25,0.95))]" />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(180deg,transparent,var(--surface))]" />
           <button
             type="button"
             onClick={onClose}
@@ -511,7 +602,7 @@ function PostDetailModal({ card, bookmarked, chatDisabled, onBookmark, onChat, o
             <FiX className="text-[1.1rem]" />
           </button>
           {card.isNew && (
-            <span className="absolute left-3 top-3 rounded-md bg-[#6f56ff] px-2 py-0.5 text-[0.7rem] font-bold tracking-wide text-white shadow">
+            <span className="absolute left-3 top-3 rounded-md bg-[#6f56ff] px-2 py-0.5 text-[0.7rem] font-bold tracking-wide text-on-accent shadow">
               NEW
             </span>
           )}
@@ -554,7 +645,7 @@ function PostDetailModal({ card, bookmarked, chatDisabled, onBookmark, onChat, o
               type="button"
               onClick={onChat}
               disabled={chatDisabled}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-[0.95rem] font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] text-[0.95rem] font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <FiMessageCircle className="text-[1.05rem]" />
               대화하기

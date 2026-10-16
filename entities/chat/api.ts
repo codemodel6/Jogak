@@ -12,6 +12,11 @@ type ChatRow = {
   match_status?: string | null;
   meet_success_user1?: boolean | null;
   meet_success_user2?: boolean | null;
+  post_id?: string | null;
+  is_priority?: boolean | null;
+  created_at?: string | null;
+  closed_at?: string | null;
+  closed_reason?: string | null;
 };
 
 type ChatMemberRow = {
@@ -58,7 +63,7 @@ async function getLastMessages(chatIds: string[]) {
 
   const { data, error } = await supabase
     .from("messages")
-    .select("chat_id, message, created_at")
+    .select("chat_id, message, kind, created_at")
     .in("chat_id", chatIds)
     .order("created_at", { ascending: false })
     .limit(500);
@@ -67,12 +72,29 @@ async function getLastMessages(chatIds: string[]) {
     throw error;
   }
 
-  for (const row of (data ?? []) as Array<{ chat_id: string; message: string; created_at: string }>) {
+  for (const row of (data ?? []) as Array<{ chat_id: string; message: string; kind: string | null; created_at: string }>) {
     if (!result.has(row.chat_id)) {
-      result.set(row.chat_id, { message: row.message, timestamp: row.created_at });
+      const message = row.kind === "system" ? "매치가 취소되었습니다." : row.message;
+      result.set(row.chat_id, { message, timestamp: row.created_at });
     }
   }
 
+  return result;
+}
+
+async function getPostTitles(postIds: string[]) {
+  const result = new Map<string, string>();
+  if (postIds.length === 0) {
+    return result;
+  }
+
+  const { data, error } = await supabase.from("posts").select("id, title").in("id", postIds);
+  if (error) {
+    throw error;
+  }
+  for (const row of (data ?? []) as Array<{ id: string; title: string }>) {
+    result.set(row.id, row.title);
+  }
   return result;
 }
 
@@ -91,6 +113,7 @@ export async function getChats() {
   const members = await getMembers(rows.map((chat) => chat.id));
   const lastMessages = await getLastMessages(rows.map((chat) => chat.id));
   const profiles = await getProfileMap([...new Set(members.map((member) => member.user_id))]);
+  const postTitles = await getPostTitles([...new Set(rows.map((chat) => chat.post_id).filter((id): id is string => Boolean(id)))]);
 
   const chats = rows.map((chat) => {
     const others = members.filter((member) => member.chat_id === chat.id && member.user_id !== user.id);
@@ -109,8 +132,22 @@ export async function getChats() {
         photos: firstOther?.photos ?? [],
       },
       lastMessage: lastMessages.get(chat.id) ?? null,
+      postId: chat.post_id ?? null,
+      postTitle: chat.post_id ? (postTitles.get(chat.post_id) ?? "삭제된 글") : null,
+      priorityIncoming: Boolean(chat.is_priority) && chat.user2_id === user.id && !chat.closed_at,
+      closed: Boolean(chat.closed_at),
     };
   });
+
+  // 받은 진심 요청이 맨 위, 나머지는 최근 대화 순
+  const activity = (chat: (typeof chats)[number], row: ChatRow) =>
+    new Date(chat.lastMessage?.timestamp ?? row.created_at ?? 0).getTime();
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  chats.sort(
+    (a, b) =>
+      Number(b.priorityIncoming) - Number(a.priorityIncoming) ||
+      activity(b, rowById.get(b.chatId)!) - activity(a, rowById.get(a.chatId)!),
+  );
 
   return { chats };
 }
@@ -143,6 +180,7 @@ export async function getChat(chatId: string) {
     (chat.user1_id === user.id ? chat.user2_id : chat.user1_id) ??
     "";
   const otherProfile = otherUserId ? await getProfileRow(otherUserId) : null;
+  const postTitle = chat.post_id ? ((await getPostTitles([chat.post_id])).get(chat.post_id) ?? "삭제된 글") : null;
 
   return {
     chat: {
@@ -154,6 +192,8 @@ export async function getChat(chatId: string) {
             members.filter((member) => member.userId !== user.id).map((member) => member.name),
           )
         : (otherProfile?.name ?? "익명"),
+      postTitle,
+      closedReason: chat.closed_at ? (chat.closed_reason ?? "closed") : null,
       members,
       user1Id: chat.user1_id ?? "",
       user2Id: chat.user2_id ?? "",
@@ -255,43 +295,15 @@ export async function markChatRead(chatId: string) {
   }
 }
 
-export async function requestChat(postUserId: string) {
-  const user = await requireUser();
-
-  // 같은 상대와의 1:1 방이 이미 있으면 그 방으로 간다.
-  const { data: existing, error: existingError } = await supabase
-    .from("chats")
-    .select("id")
-    .eq("is_group", false)
-    .or(
-      `and(user1_id.eq.${user.id},user2_id.eq.${postUserId}),and(user1_id.eq.${postUserId},user2_id.eq.${user.id})`,
-    )
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (existingError) {
-    throw existingError;
-  }
-
-  if (existing && existing.length > 0) {
-    return { chatId: existing[0].id as string };
-  }
-
-  const { data, error } = await supabase
-    .from("chats")
-    .insert({
-      user1_id: user.id,
-      user2_id: postUserId,
-      match_status: "none",
-    })
-    .select("id")
-    .single();
+// 매칭 글로 대화 시작: 글마다 방이 따로 생긴다. 이미 있으면 그 방으로. 대화는 무료(매칭권은 매칭 요청 때).
+export async function startPostChat(postId: string) {
+  const { data, error } = await supabase.rpc("start_post_chat", { p_post_id: postId });
 
   if (error) {
-    throw error;
+    throw new Error(error.message);
   }
 
-  return { chatId: data.id as string };
+  return data as { chatId: string };
 }
 
 // 매칭 화면 통계: 오늘·누적 매칭 성공 건수 (전체 사용자 기준)

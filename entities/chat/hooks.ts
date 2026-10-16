@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as api from "@/entities/chat/api";
 import { chatKeys } from "@/entities/chat/query-keys";
+import { useRefreshWallet } from "@/entities/wallet/hooks";
 import { supabase } from "@/shared/supabase";
 
 export function useChatsQuery(enabled = true) {
@@ -98,12 +99,13 @@ export function useLeaveChatMutation() {
   });
 }
 
-export function useRequestChatMutation() {
+export function useStartPostChatMutation() {
   const queryClient = useQueryClient();
+  const refreshWallet = useRefreshWallet();
 
   return useMutation({
-    mutationFn: api.requestChat,
+    mutationFn: api.startPostChat,
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: chatKeys.lists() }),
+      Promise.all([queryClient.invalidateQueries({ queryKey: chatKeys.lists() }), refreshWallet()]),
   });
 }

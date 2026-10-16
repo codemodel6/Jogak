@@ -7,6 +7,7 @@ import { chatKeys } from "@/entities/chat/query-keys";
 import * as api from "@/entities/match/api";
 import { matchKeys } from "@/entities/match/query-keys";
 import { profileKeys } from "@/entities/profile/query-keys";
+import { walletKeys } from "@/entities/wallet/query-keys";
 import { supabase } from "@/shared/supabase";
 
 // 매칭 상태가 바뀌면(상대가 요청·수락·만났어요) 양쪽 화면에 바로 반영한다.
@@ -126,12 +127,16 @@ function useMatchMutation<TVariables, TData>(chatId: string, mutationFn: (variab
         queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) }),
         queryClient.invalidateQueries({ queryKey: chatKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: profileKeys.me() }),
+        queryClient.invalidateQueries({ queryKey: walletKeys.all }),
       ]);
     },
   });
 }
 
-export const useRequestMatchMutation = (chatId: string) => useMatchMutation(chatId, () => api.requestMatch(chatId));
+export const useRequestMatchMutation = (chatId: string) =>
+  useMatchMutation(chatId, (priority: boolean) => api.requestMatch({ chatId, priority }));
+export const useDecideMatchRequestMutation = (chatId: string) => useMatchMutation(chatId, api.decideMatchRequest);
+export const useWithdrawMatchMutation = (chatId: string) => useMatchMutation(chatId, api.withdrawMatch);
 export const useRespondMatchMutation = (chatId: string) => useMatchMutation(chatId, api.respondMatch);
 export const useCancelMatchMutation = (chatId: string) => useMatchMutation(chatId, api.cancelMatch);
 export const useConfirmMeetMutation = (chatId: string) => useMatchMutation(chatId, api.confirmMeet);

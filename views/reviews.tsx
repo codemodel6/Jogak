@@ -44,7 +44,7 @@ function Stars({ rating, className }: { rating: number; className?: string }) {
 
 function Avatar({ name, photo }: { name: string; photo?: string }) {
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#39466b,#182033)] text-[0.9rem] font-semibold text-zinc-200">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,var(--avatar-from),var(--avatar-to))] text-[0.9rem] font-semibold text-zinc-200">
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={photo} alt={name} className="h-full w-full object-cover" />

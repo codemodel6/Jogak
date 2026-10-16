@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FiAlertTriangle, FiCheckCircle, FiClock, FiHeart, FiMapPin, FiNavigation } from "react-icons/fi";
+import { FiAlertTriangle, FiCheckCircle, FiClock, FiEye, FiHeart, FiLock, FiMapPin, FiNavigation } from "react-icons/fi";
 
 import {
   useActiveMatchQuery,
@@ -10,11 +10,15 @@ import {
   useChatLocationsQuery,
   useConfirmMeetMutation,
   useContestPenaltyMutation,
+  useDecideMatchRequestMutation,
   useMyPendingPenaltiesQuery,
   useReportNoShowMutation,
   useRequestMatchMutation,
   useRespondMatchMutation,
 } from "@/entities/match/hooks";
+import { useWalletQuery } from "@/entities/wallet/hooks";
+import FaceDecisionModal from "@/features/match/face-decision-modal";
+import MatchRequestSheet from "@/features/match/match-request-sheet";
 import { distanceMeters, useLiveLocationSharing } from "@/features/match/use-live-location";
 import ReviewModal from "@/features/review/review-modal";
 import Skeleton from "@/shared/ui/skeleton";
@@ -22,7 +26,12 @@ import Skeleton from "@/shared/ui/skeleton";
 type MatchPanelProps = {
   chatId: string;
   currentUserId: string;
+  partnerUserId: string;
   partnerName: string;
+  // 채팅·상대 정보에 보이는 프로필 아이콘 (실물 사진이 없을 때 확인 창에 대신 보여 준다)
+  partnerAvatar?: string;
+  // 매칭 거절로 닫힌 방이면 그 이유
+  closedReason: string | null;
   onNotice: (message: string) => void;
   onError: (message: string) => void;
 };
@@ -90,13 +99,40 @@ function dismissReview(matchId: string) {
   }
 }
 
+// 대화방이 닫힌 사유별 안내 (chats.closed_reason)
+function closedMessage(reason: string) {
+  switch (reason) {
+    case "declined":
+      return "매칭이 거절되었습니다.";
+    case "requester_rejected":
+      return "매칭 요청이 취소되었습니다.";
+    case "withdrawn":
+      return "매치가 취소되었습니다.";
+    case "reported":
+      return "만나지 못해 매칭이 끝났습니다.";
+    case "expired":
+      return "매칭 시간이 끝났습니다.";
+    default:
+      return "매칭이 끝났습니다.";
+  }
+}
+
 const primaryButton =
-  "flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-4 text-[0.88rem] font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60";
+  "flex h-10 items-center justify-center gap-1.5 rounded-[12px] bg-[linear-gradient(135deg,#6f56ff,#7b50f3)] px-4 text-[0.88rem] font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60";
 const ghostButton =
   "flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-white/10 bg-white/5 px-4 text-[0.88rem] font-medium text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60";
 
 // 1:1 채팅 상단의 매칭 영역: 요청 → 수락 → 매칭 중(실시간 위치, 만났어요/못 만났어요) → 감점 예정 조치
-export default function MatchPanel({ chatId, currentUserId, partnerName, onNotice, onError }: MatchPanelProps) {
+export default function MatchPanel({
+  chatId,
+  currentUserId,
+  partnerUserId,
+  partnerName,
+  partnerAvatar,
+  closedReason,
+  onNotice,
+  onError,
+}: MatchPanelProps) {
   const matchQuery = useActiveMatchQuery(chatId);
   const penaltiesQuery = useMyPendingPenaltiesQuery(currentUserId || undefined);
   const match = matchQuery.data?.match ?? null;
@@ -110,7 +146,14 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
   const confirmMutation = useConfirmMeetMutation(chatId);
   const reportMutation = useReportNoShowMutation(chatId);
   const contestMutation = useContestPenaltyMutation(chatId);
+  const decideMutation = useDecideMatchRequestMutation(chatId);
+  const walletQuery = useWalletQuery();
   const [confirmingReport, setConfirmingReport] = useState(false);
+  const [requestSheetOpen, setRequestSheetOpen] = useState(false);
+  const [requestError, setRequestError] = useState<{ message: string; needsPoints: boolean } | null>(null);
+  // 사진 확인 창을 '나중에'로 닫은 매칭 (매칭 영역 버튼으로 다시 연다)
+  const [faceClosedFor, setFaceClosedFor] = useState<string | null>(null);
+  const [faceOpenFor, setFaceOpenFor] = useState<string | null>(null);
   const [reviewOpenFor, setReviewOpenFor] = useState<string | null>(null);
   const [reviewClosedFor, setReviewClosedFor] = useState<string | null>(null);
 
@@ -129,7 +172,8 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
     cancelMutation.isPending ||
     confirmMutation.isPending ||
     reportMutation.isPending ||
-    contestMutation.isPending;
+    contestMutation.isPending ||
+    decideMutation.isPending;
 
   const run = async (action: () => Promise<unknown>, message: string) => {
     try {
@@ -205,7 +249,7 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
           <div className="min-w-0 flex-1">
             <p className="break-keep text-[0.9rem] font-semibold text-white">{partnerName}님과 만남 완료</p>
             <p className="mt-0.5 break-keep text-[0.78rem] text-zinc-400">
-              {reviewed ? "후기를 남겼어요. 고마워요!" : "신뢰 점수 +1점! 짧은 후기를 남겨 주세요."}
+              {reviewed ? "후기를 남겼어요. 고마워요!" : "신뢰 점수 +1점! 짧은 후기를 남겨 주세요."} 대화는 종료됐어요.
             </p>
           </div>
           {reviewed ? (
@@ -234,75 +278,145 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
     );
   }
 
-  if (!match) {
+  if (closedReason) {
     return (
       <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-white/[0.03] px-4 py-3">
-        <FiHeart className="shrink-0 text-[1.1rem] text-violet-300" />
+        <FiLock className="shrink-0 text-[1.1rem] text-zinc-400" />
         <p className="min-w-0 flex-1 break-keep text-[0.85rem] text-zinc-300">
-          마음이 맞았다면 매칭을 요청해 보세요. 매칭되면 서로의 위치를 볼 수 있어요.
+          {closedMessage(closedReason)} 이 대화는 종료되어 더 이상 메시지를 보낼 수 없어요.
         </p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void run(() => requestMutation.mutateAsync(undefined), `${partnerName}님에게 매칭을 요청했어요.`)}
-          className={cx(primaryButton, "shrink-0")}
-        >
-          <FiHeart />
-          매칭 요청
-        </button>
       </div>
+    );
+  }
+
+  if (!match) {
+    const submitRequest = async (priority: boolean) => {
+      try {
+        await requestMutation.mutateAsync(priority);
+        setRequestSheetOpen(false);
+        onNotice(`${partnerName}님의 사진을 확인하고 매칭 여부를 골라 주세요.`);
+      } catch (err) {
+        setRequestError({
+          message: err instanceof Error ? err.message : "매칭 요청에 실패했어요.",
+          needsPoints: Boolean((err as { needsPoints?: boolean })?.needsPoints),
+        });
+      }
+    };
+
+    return (
+      <>
+        <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-white/[0.03] px-4 py-3">
+          <FiHeart className="shrink-0 text-[1.1rem] text-violet-300" />
+          <p className="min-w-0 flex-1 break-keep text-[0.85rem] text-zinc-300">
+            마음이 맞았다면 매칭을 요청해 보세요. 요청하면 상대 실물 사진을 먼저 확인할 수 있어요.
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setRequestError(null);
+              setRequestSheetOpen(true);
+            }}
+            className={cx(primaryButton, "shrink-0")}
+          >
+            <FiHeart />
+            매칭 요청
+          </button>
+        </div>
+        {requestSheetOpen && (
+          <MatchRequestSheet
+            partnerName={partnerName}
+            wallet={walletQuery.data}
+            pending={requestMutation.isPending}
+            error={requestError?.message ?? null}
+            needsPoints={requestError?.needsPoints ?? false}
+            onConfirm={(priority) => void submitRequest(priority)}
+            onClose={() => setRequestSheetOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
   if (match.status === "requested") {
     const iRequested = match.requesterId === currentUserId;
+    // 요청한 나: 확정 전이면 상대 사진을 보고 결정 / 받은 나: 상대가 확정한 뒤에 사진을 보고 답함
+    const myTurn = iRequested ? !match.requesterConfirmed : match.requesterConfirmed;
+    const faceOpen =
+      myTurn && (faceOpenFor === match.matchId || faceClosedFor !== match.matchId);
+    const closeFace = () => {
+      setFaceClosedFor(match.matchId);
+      setFaceOpenFor(null);
+    };
+    const decide = (proceed: boolean) =>
+      void run(
+        async () => {
+          if (iRequested) {
+            await decideMutation.mutateAsync({ matchId: match.matchId, proceed });
+          } else {
+            await respondMutation.mutateAsync({ matchId: match.matchId, accept: proceed });
+          }
+          setFaceOpenFor(null);
+        },
+        iRequested
+          ? proceed
+            ? `${partnerName}님에게 매칭 요청을 보냈어요. 답을 기다려 주세요.`
+            : "매칭 요청을 취소했어요. 대화가 종료돼요."
+          : proceed
+            ? "매칭되었어요!"
+            : "매칭을 거절했어요. 대화가 종료돼요.",
+      );
 
-    if (iRequested) {
+    const faceModal = faceOpen && (
+      <FaceDecisionModal
+        partnerUserId={partnerUserId}
+        partnerName={partnerName}
+        partnerAvatar={partnerAvatar}
+        role={iRequested ? "requester" : "receiver"}
+        pending={busy}
+        onDecide={decide}
+        onClose={closeFace}
+      />
+    );
+
+    if (myTurn) {
       return (
-        <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-white/[0.03] px-4 py-3">
-          <FiClock className="shrink-0 text-[1.1rem] text-violet-300" />
-          <p className="min-w-0 flex-1 break-keep text-[0.85rem] text-zinc-300">
-            {partnerName}님의 수락을 기다리고 있어요.
-          </p>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void run(() => cancelMutation.mutateAsync(match.matchId), "매칭 요청을 취소했어요.")}
-            className={cx(ghostButton, "shrink-0")}
-          >
-            요청 취소
-          </button>
-        </div>
+        <>
+          <div className="rounded-[16px] border border-violet-400/35 bg-violet-500/12 px-4 py-3.5">
+            <div className="flex items-center gap-2.5">
+              <FiHeart className="shrink-0 fill-current text-[1.1rem] text-violet-300" />
+              <p className="min-w-0 flex-1 break-keep text-[0.92rem] font-semibold text-white">
+                {iRequested ? `${partnerName}님의 사진을 확인해 주세요` : `${partnerName}님이 매칭을 원해요`}
+              </p>
+              <button type="button" onClick={() => setFaceOpenFor(match.matchId)} className={cx(primaryButton, "shrink-0")}>
+                <FiEye />
+                사진 보고 결정
+              </button>
+            </div>
+          </div>
+          {faceModal}
+        </>
       );
     }
 
     return (
-      <div className="rounded-[16px] border border-violet-400/35 bg-violet-500/12 px-4 py-3.5">
-        <div className="flex items-center gap-2.5">
-          <FiHeart className="shrink-0 fill-current text-[1.1rem] text-violet-300" />
-          <p className="break-keep text-[0.92rem] font-semibold text-white">{partnerName}님이 매칭을 요청했어요</p>
-        </div>
-        <p className="mt-1 break-keep pl-[1.85rem] text-[0.8rem] text-zinc-300">
-          수락하면 24시간 동안 서로의 위치를 볼 수 있어요.
+      <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-white/[0.03] px-4 py-3">
+        <FiClock className="shrink-0 text-[1.1rem] text-violet-300" />
+        <p className="min-w-0 flex-1 break-keep text-[0.85rem] text-zinc-300">
+          {iRequested
+            ? `${partnerName}님이 내 사진을 보고 답하는 중이에요.`
+            : `${partnerName}님이 매칭을 요청했어요. 상대가 확정하면 사진을 보고 답할 수 있어요.`}
         </p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        {iRequested && (
           <button
             type="button"
             disabled={busy}
-            onClick={() => void run(() => respondMutation.mutateAsync({ matchId: match.matchId, accept: false }), "매칭 요청을 거절했어요.")}
-            className={ghostButton}
+            onClick={() => void run(() => cancelMutation.mutateAsync(match.matchId), "매칭 요청을 취소했어요. 대화가 종료돼요.")}
+            className={cx(ghostButton, "shrink-0")}
           >
-            거절
+            요청 취소
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void run(() => respondMutation.mutateAsync({ matchId: match.matchId, accept: true }), "매칭되었어요!")}
-            className={primaryButton}
-          >
-            수락
-          </button>
-        </div>
+        )}
       </div>
     );
   }
@@ -318,7 +432,7 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
   const distance = myLocation && partnerLocation ? distanceMeters(myLocation, partnerLocation) : null;
 
   return (
-    <div className="rounded-[16px] border border-violet-400/30 bg-[linear-gradient(135deg,rgba(111,86,255,0.14),rgba(20,24,48,0.6))] px-4 py-3.5">
+    <div className="rounded-[16px] border border-violet-400/30 bg-accent-tint px-4 py-3.5">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-1.5 rounded-full bg-violet-500/25 px-2.5 py-1 text-[0.78rem] font-semibold text-violet-100">
           <FiHeart className="fill-current" />
@@ -334,7 +448,7 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
       <div className="mt-3 rounded-[12px] border border-white/8 bg-black/20 px-3.5 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[0.85rem] font-semibold text-white">
+            <div className="flex items-center gap-1.5 text-[0.85rem] font-semibold text-white">
               <FiMapPin className="text-violet-300" />
               {locationsQuery.isPending ? (
                 <Skeleton className="h-4 w-40 rounded-md" />
@@ -343,7 +457,7 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
               ) : (
                 `${partnerName}님이 아직 위치를 공유하지 않았어요`
               )}
-            </p>
+            </div>
             {partnerLocation && (
               <p className="mt-0.5 text-[0.78rem] text-zinc-400">
                 {distance !== null ? `나와 ${formatDistance(distance)} · ` : ""}
@@ -380,7 +494,7 @@ export default function MatchPanel({ chatId, currentUserId, partnerName, onNotic
       {confirmingReport ? (
         <div className="mt-3 rounded-[12px] border border-rose-400/25 bg-rose-500/8 px-3.5 py-3">
           <p className="break-keep text-[0.82rem] text-rose-100">
-            정말 못 만났나요? 매칭이 끝나고, {partnerName}님이 1시간 안에 조치하지 않으면 신뢰 점수가 1점 깎여요.
+            정말 못 만났나요? 매칭과 대화가 끝나고, {partnerName}님이 1시간 안에 조치하지 않으면 신뢰 점수가 1점 깎여요.
           </p>
           <div className="mt-2.5 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setConfirmingReport(false)} className={ghostButton}>

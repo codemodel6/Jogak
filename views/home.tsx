@@ -12,10 +12,12 @@ import {
 } from "react-icons/fi";
 
 import { useMatchStatsQuery } from "@/entities/chat/hooks";
-import type { Post } from "@/entities/post";
+import { isBoosted, type Post } from "@/entities/post";
 import { usePostsQuery } from "@/entities/post/hooks";
 import { useProfileQuery } from "@/entities/profile/hooks";
+import { useWalletQuery } from "@/entities/wallet/hooks";
 import { useAuthStatusQuery } from "@/features/auth/hooks";
+import WalletBar from "@/features/wallet/wallet-bar";
 import { useOnlineUserIds } from "@/shared/lib/presence/online-users";
 import Skeleton from "@/shared/ui/skeleton";
 import HomeBanner from "@/widgets/home-banner";
@@ -34,6 +36,7 @@ export default function HomePage() {
   const postsQuery = usePostsQuery(queryEnabled);
   const profileQuery = useProfileQuery(queryEnabled);
   const matchStatsQuery = useMatchStatsQuery(queryEnabled);
+  const walletQuery = useWalletQuery(queryEnabled);
 
   const posts: Post[] = postsQuery.data?.posts ?? [];
   const profile = profileQuery.data?.profile;
@@ -63,11 +66,11 @@ export default function HomePage() {
         ? "데이터를 불러오지 못했습니다."
         : null);
 
-  // 다른 사람이 올린 매칭 글(최신순). 지금 접속 중인 사람의 글을 앞에 둔다.
+  // 다른 사람이 올린 매칭 글(최신순). 상단 노출(2P) 글이 맨 앞, 그다음 지금 접속 중인 사람의 글.
   const availablePosts = posts
     .filter((post) => post.userId && post.userId !== currentUserId)
-    .map((post, order) => ({ post, order, online: onlineIds.includes(post.userId) }))
-    .sort((a, b) => Number(b.online) - Number(a.online) || a.order - b.order);
+    .map((post, order) => ({ post, order, online: onlineIds.includes(post.userId), boosted: isBoosted(post) }))
+    .sort((a, b) => Number(b.boosted) - Number(a.boosted) || Number(b.online) - Number(a.online) || a.order - b.order);
   const cardPosts = availablePosts.slice(0, CARD_COUNT);
 
   const matchStats = matchStatsQuery.data;
@@ -84,7 +87,7 @@ export default function HomePage() {
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
           {/* 보조 단: PC에서는 오른쪽에 고정, 모바일에서는 본문 맨 위 */}
           <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-5 xl:col-start-2 xl:row-start-1">
-            <section className="rounded-[22px] bg-[linear-gradient(135deg,rgba(87,60,216,0.92),rgba(25,20,74,0.94))] px-5 py-5 shadow-[0_22px_42px_rgba(29,20,84,0.3)]">
+            <section className="keep-dark rounded-[22px] bg-[linear-gradient(135deg,rgba(87,60,216,0.92),rgba(25,20,74,0.94))] px-5 py-5 shadow-[0_22px_42px_rgba(29,20,84,0.3)]">
               <p className="text-[0.92rem] font-medium text-white/80">내 신뢰 포인트</p>
               <div className="mt-3 flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#5660ff,#5b4eff)]">
@@ -109,6 +112,8 @@ export default function HomePage() {
               </Link>
             </section>
 
+            {/* 오늘 남은 무료 매칭권 (매칭 화면과 같은 줄) */}
+            <WalletBar wallet={mounted ? walletQuery.data : undefined} />
           </aside>
 
           <main className="flex min-w-0 flex-col gap-5 xl:col-start-1 xl:row-start-1">
@@ -117,7 +122,7 @@ export default function HomePage() {
             <section>
               <div className="flex items-center justify-between">
                 <h2 className="text-[1.25rem] font-semibold tracking-[-0.03em] text-white md:text-[1.35rem]">
-                  지금 올라온 매칭
+                  실시간 매칭 카드
                   {!postsLoading && availablePosts.length > 0 && (
                     <span className="ml-2 text-[0.9rem] font-medium text-violet-300">{availablePosts.length}</span>
                   )}
@@ -140,13 +145,18 @@ export default function HomePage() {
                   <p className="w-full py-6 text-center text-[0.85rem] text-zinc-400">표시할 매칭 글이 없어요.</p>
                 )}
                 {!postsLoading &&
-                  cardPosts.map(({ post, online }, index) => (
+                  cardPosts.map(({ post, online, boosted }, index) => (
                     <Link
                       key={`${post.postId}-${index}`}
                       href="/matching"
-                      className="w-[42%] shrink-0 snap-start rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(18,25,49,0.95),rgba(12,17,34,0.94))] px-3 py-4 text-center shadow-[0_16px_32px_rgba(0,0,0,0.24)] transition hover:border-white/15 sm:w-[calc(25%-9px)]"
+                      className={`relative w-[42%] shrink-0 snap-start rounded-[18px] border bg-surface px-3 py-4 text-center transition hover:border-violet-400/40 sm:w-[calc(25%-9px)] ${boosted ? "border-violet-400/50" : "border-white/8"}`}
                     >
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,#3d4a6d,#182033)] text-[1rem] font-semibold text-zinc-200 md:h-16 md:w-16">
+                      {boosted && (
+                        <span className="absolute left-2 top-2 rounded-md bg-[linear-gradient(135deg,#f59e0b,#ef4444)] px-1.5 py-[1px] text-[0.6rem] font-bold tracking-wide text-on-accent">
+                          UP
+                        </span>
+                      )}
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[linear-gradient(135deg,var(--avatar-from),var(--avatar-to))] text-[1rem] font-semibold text-zinc-200 md:h-16 md:w-16">
                         {post.coverUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img alt="" src={post.coverUrl} className="h-full w-full object-cover" />
@@ -167,7 +177,7 @@ export default function HomePage() {
                         )}
                       </div>
                       {online && (
-                        <div className="mt-3 inline-flex rounded-full bg-[linear-gradient(135deg,#5f47ee,#4933c7)] px-3 py-1.5 text-[0.7rem] font-medium text-white">
+                        <div className="mt-3 inline-flex rounded-full bg-[linear-gradient(135deg,#5f47ee,#4933c7)] px-3 py-1.5 text-[0.7rem] font-medium text-on-accent">
                           ONLINE
                         </div>
                       )}
@@ -183,7 +193,7 @@ export default function HomePage() {
                 return (
                   <div
                     key={stat.label}
-                    className="rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,rgba(15,19,36,0.98),rgba(10,13,25,0.98))] px-2 py-4 text-center md:py-5"
+                    className="rounded-[18px] border border-white/7 bg-[linear-gradient(180deg,var(--surface),var(--surface-end))] px-2 py-4 text-center md:py-5"
                   >
                     <Icon className={cx("mx-auto text-[1.35rem] md:text-[1.55rem]", stat.color)} />
                     <p className="home-meta-text mt-2.5 text-zinc-300">{stat.label}</p>
