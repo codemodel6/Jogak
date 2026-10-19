@@ -29,24 +29,17 @@ export default function RootPage() {
   }, [isAuthenticated, isError, router]);
 
   return (
-    <div className="app-frame flex min-h-screen items-center justify-center px-6 text-white">
-      <div className="surface-panel w-full max-w-2xl p-10 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4 animate-[splash-in_0.6s_ease-out_both]">
         <Image
           src="/icons/icon-512.png"
           alt="조각"
-          width={96}
-          height={96}
+          width={88}
+          height={88}
           priority
-          className="mx-auto mb-6 h-24 w-24 rounded-full object-cover shadow-[0_0_36px_rgba(139,92,246,0.32)]"
+          className="h-22 w-22 rounded-[24px] object-cover"
         />
-        <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">조각</h1>
-        <p className="mt-4 text-base text-zinc-300 md:text-lg">
-          신뢰 기반 실시간 만남 경험으로 홈과 전반적인 화면 디자인을 새롭게 연결하고 있습니다.
-        </p>
-        <div className="mt-8 flex items-center justify-center gap-2 text-sm text-zinc-400">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-violet-400" />
-          <span>서비스로 이동 중...</span>
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">조각</h1>
       </div>
     </div>
   );
